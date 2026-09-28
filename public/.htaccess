@@ -1,0 +1,21 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Pas de RewriteBase fixe : Apache la deduit automatiquement du dossier
+    # contenant ce fichier .htaccess, que l'appli soit montee a la racine du
+    # domaine (VirtualHost) ou dans un sous-dossier (ex: /RISFM/public/).
+
+    # Ne pas reecrire les fichiers/dossiers reels (assets, uploads...)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Tout le reste passe par le front controller
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+Options -Indexes
+<FilesMatch "\.(php)$">
+    <RequireAll>
+        Require all granted
+    </RequireAll>
+</FilesMatch>

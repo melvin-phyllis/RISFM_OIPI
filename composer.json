@@ -1,0 +1,30 @@
+{
+    "name": "oipi/risfm",
+    "description": "OIPI - Registre Intelligent de Suivi des Formulaires Manquants (RISFM)",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-mbstring": "*",
+        "ext-gd": "*",
+        "phpoffice/phpspreadsheet": "^1.29",
+        "phpoffice/phpword": "^1.2",
+        "dompdf/dompdf": "^3.1.6",
+        "phpmailer/phpmailer": "^6.10"
+    },
+    "autoload": {
+        "classmap": [
+            "core/",
+            "models/",
+            "controllers/"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "8.1.0"
+        }
+    }
+}

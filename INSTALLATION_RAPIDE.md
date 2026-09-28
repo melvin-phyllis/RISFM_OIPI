@@ -1,0 +1,108 @@
+# RISFM — Installation rapide en local
+
+Ce guide permet d'installer et de lancer l'application RISFM sur un poste
+Linux en quelques minutes.
+
+## Prérequis
+
+Vérifier que ces trois outils sont installés :
+
+```bash
+php -v          # PHP 8.1 ou plus
+mysql --version # MySQL 8 ou MariaDB 10.6+
+composer --version
+```
+
+Extensions PHP nécessaires : `pdo_mysql`, `mbstring`, `gd`, `zip`, `xml`,
+`fileinfo`.
+
+## Installation (à faire une seule fois)
+
+### 1. Aller dans le dossier du projet
+
+```bash
+cd chemin/vers/RISFM_OIPI_v2
+```
+
+### 2. Installer les dépendances
+
+```bash
+composer install
+```
+
+### 3. Créer la base de données
+
+Remplacer `Risfm_2026` par un mot de passe de votre choix (et le reporter à
+l'étape suivante). **Ne pas utiliser le caractère `!`** dans ce mot de passe :
+le terminal l'interprète et la commande échoue avec `event not found`.
+
+```bash
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS oipi_risfm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'risfm_user'@'localhost' IDENTIFIED BY 'Risfm_2026'; ALTER USER 'risfm_user'@'localhost' IDENTIFIED BY 'Risfm_2026'; GRANT ALL PRIVILEGES ON oipi_risfm.* TO 'risfm_user'@'localhost'; FLUSH PRIVILEGES;"
+```
+
+Cette commande peut être relancée sans risque si elle a échoué la première
+fois.
+
+### 4. Créer le fichier de configuration
+
+```bash
+cat > .env <<'EOF'
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=oipi_risfm
+DB_USER=risfm_user
+DB_PASS=Risfm_2026
+ENABLE_LOGIN_OTP=false
+EOF
+chmod 600 .env
+```
+
+### 5. Remplir la base
+
+```bash
+mysql -u risfm_user -p'Risfm_2026' oipi_risfm < schema.sql
+php scripts/migrate.php
+```
+
+### 6. Créer le compte administrateur
+
+```bash
+php scripts/create_admin.php
+```
+
+Le script demande un nom, un e-mail et un mot de passe, puis affiche un
+identifiant du type `OIPI-RISFM-000001`. Le noter.
+
+Appuyer sur Entrée garde la valeur proposée entre crochets. Le mot de passe ne
+s'affiche pas pendant la saisie. Il doit contenir **au moins 10 caractères**,
+avec une majuscule, une minuscule, un chiffre et un caractère spécial
+(exemple : `AdminOipi2026!`).
+
+## Lancer l'application
+
+```bash
+php -S localhost:8000 -t public public/router.php
+```
+
+Ouvrir **http://localhost:8000/login** dans le navigateur et se connecter avec
+l'e-mail (ou l'identifiant) et le mot de passe de l'administrateur.
+
+Pour arrêter l'application : `Ctrl+C` dans le terminal.
+
+> Les fois suivantes, il suffit de se placer dans le dossier du projet puis de
+> lancer la commande ci-dessus.
+
+## En cas de problème
+
+| Message | Solution |
+|---|---|
+| `Access denied for user risfm_user` | Le mot de passe dans `.env` ne correspond pas à celui de l'étape 3. |
+| `Base table or view not found` | Refaire l'étape 5. |
+| `ECHEC : Le mot de passe doit contenir…` | Relancer l'étape 6 avec un mot de passe plus fort. |
+| La page ne s'ouvre pas | Vérifier que la commande de lancement tourne toujours dans le terminal. |
+
+Pour aller plus loin (déploiement sur cPanel, e-mails, sauvegardes), voir
+[README.md](README.md) et [docs/GUIDE_DEPLOIEMENT.md](docs/GUIDE_DEPLOIEMENT.md).
