@@ -119,9 +119,12 @@ try {
         'id' => (int) $admin['id'],
     ]);
     $db->exec("UPDATE parametres SET valeur = 'Nom personnalise' WHERE cle = 'app_nom'");
-    [$exit, $output] = $seed();
+    [$exit, $output] = $seed(['--only=admin']);
     if ($exit !== 0 || $counts() !== $first) {
-        throw new RuntimeException('Le seed relance a modifie les donnees : ' . trim($output));
+        throw new RuntimeException('Le seed admin a modifie les donnees de reference : ' . trim($output));
+    }
+    if (!str_contains($output, 'AdminSeeder') || str_contains($output, 'RolePermissionSeeder')) {
+        throw new RuntimeException('--only=admin doit executer uniquement AdminSeeder : ' . trim($output));
     }
     if ((string) $db->query("SELECT valeur FROM parametres WHERE cle = 'app_nom'")->fetchColumn() !== 'Nom personnalise') {
         throw new RuntimeException('Le seed a ecrase un parametre modifie depuis l administration.');
@@ -138,9 +141,18 @@ try {
         throw new RuntimeException('Le seed n a pas reinitialise le mot de passe administrateur.');
     }
 
+    [$exit, $output] = $seed(['--only=inconnu']);
+    if ($exit === 0 || !str_contains($output, 'Seeder inconnu')) {
+        throw new RuntimeException('Un nom de seeder inconnu doit etre refuse.');
+    }
+
     [$exit] = $seed(['--demo'], ['APP_ENV' => 'production']);
     if ($exit === 0 || $counts() !== $first) {
         throw new RuntimeException('Les donnees de demonstration doivent etre refusees en production.');
+    }
+    [$exit] = $seed(['--only=utilisateurs-demo'], ['APP_ENV' => 'production']);
+    if ($exit === 0 || $counts() !== $first) {
+        throw new RuntimeException('Un seeder de demonstration cible doit aussi etre refuse en production.');
     }
 
     echo "INSTALLATION INITIALE OK: schema vide, seeders idempotents et mot de passe administrateur reinitialisable.\n";

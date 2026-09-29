@@ -175,6 +175,7 @@ dépôt Git.
 | Appliquer les mises à jour SQL | `php scripts/migrate.php` |
 | Voir l’état des migrations | `php scripts/migrate.php --status` |
 | Remplir les données et créer le premier administrateur | `php scripts/seed.php` |
+| Exécuter uniquement un seeder précis | `php scripts/seed.php --only=admin` (voir `--help`) |
 | Ajouter les données de démonstration (poste de test) | `php scripts/seed.php --demo` |
 | Vérifier la configuration de production | `php scripts/check_production.php` |
 | Vérifier les rappels | `php scripts/relances.php --status` |
