@@ -44,7 +44,6 @@ composer install
 php scripts/migrate.php
 php scripts/migrate.php --status
 php scripts/seed.php            # --demo pour un poste de test
-php scripts/create_admin.php     # première installation uniquement
 php scripts/recette.php
 ```
 

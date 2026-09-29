@@ -32,12 +32,16 @@ final class DatabaseSeeder
     }
 
     /**
-     * @param bool $demo ajoute les comptes et formulaires de demonstration
+     * @param bool $admin cree le premier administrateur (AdminSeeder)
+     * @param bool $demo  ajoute les comptes et formulaires de demonstration
      * @return array<string, string> resume par seeder
      */
-    public function run(bool $demo = false): array
+    public function run(bool $admin = true, bool $demo = false): array
     {
         $seeders = self::REFERENCE;
+        if ($admin || $demo) {
+            $seeders[] = AdminSeeder::class;
+        }
         if ($demo) {
             array_push($seeders, ...self::DEMO);
         }

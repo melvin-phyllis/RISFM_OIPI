@@ -71,17 +71,20 @@ php scripts/migrate.php
 
 ```bash
 php scripts/seed.php
-php scripts/create_admin.php
 ```
 
-La première commande crée les rôles, statuts, types de titres, localisations
-et paramètres. La seconde demande interactivement le nom, l’adresse e-mail et
-le mot de passe du premier administrateur. Le mot de passe doit contenir au
-moins 10 caractères, avec une majuscule, une minuscule, un chiffre et un
-caractère spécial. Aucun mot de passe administrateur par défaut n’est livré.
+Cette commande crée les rôles, statuts, types de titres, localisations,
+paramètres et le compte administrateur :
 
-Pour avoir aussi des comptes et formulaires d'exemple sur un poste de test,
-créer d’abord l’administrateur puis lancer `php scripts/seed.php --demo`.
+- **E-mail** : `admin@oipi.ci`
+- **Mot de passe** : `Admin_Oipi2026#`
+
+À la première connexion, l'application demande de choisir un nouveau mot de
+passe (au moins 10 caractères, avec une majuscule, une minuscule, un chiffre et
+un caractère spécial).
+
+Pour avoir aussi des comptes et formulaires d'exemple sur un poste de test :
+`php scripts/seed.php --demo`.
 
 ## Lancer l'application
 
@@ -89,8 +92,9 @@ créer d’abord l’administrateur puis lancer `php scripts/seed.php --demo`.
 php -S localhost:8000 -t public public/router.php
 ```
 
-Ouvrir **http://localhost:8000/login** dans le navigateur et utiliser l’adresse
-e-mail et le mot de passe choisis avec `create_admin.php`.
+Ouvrir **http://localhost:8000/login** dans le navigateur et se connecter avec
+`admin@oipi.ci` et `Admin_Oipi2026#`, puis choisir le nouveau mot de passe
+demandé.
 
 Pour arrêter l'application : `Ctrl+C` dans le terminal.
 
@@ -104,7 +108,7 @@ Pour arrêter l'application : `Ctrl+C` dans le terminal.
 | `Access denied for user risfm_user` | Le mot de passe dans `.env` ne correspond pas à celui de l'étape 3. |
 | `Base table or view not found` | Refaire l'étape 5. |
 | `Table 'roles' doesn't exist` pendant l'étape 6 | Faire d'abord l'étape 5 (tables et migrations). |
-| Connexion administrateur refusée | Utiliser l’adresse choisie avec `create_admin.php` ou réinitialiser le mot de passe depuis l’application. |
+| Connexion refusée pour `admin@oipi.ci` | Relancer `php scripts/seed.php` : il indique si un administrateur existe déjà. |
 | La page ne s'ouvre pas | Vérifier que la commande de lancement tourne toujours dans le terminal. |
 
 Pour aller plus loin (déploiement sur cPanel, e-mails, sauvegardes), voir

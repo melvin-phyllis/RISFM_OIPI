@@ -7,12 +7,11 @@ use Database\Seeders\DatabaseSeeder;
 /**
  * Remplit la base avec ses donnees initiales (voir database/seeders/).
  *
- *   php scripts/seed.php          donnees de reference
+ *   php scripts/seed.php          donnees de reference + premier administrateur
  *   php scripts/seed.php --demo   + comptes et formulaires de demonstration
  *
  * A lancer apres php scripts/migrate.php. La commande peut etre relancee :
  * elle n'ajoute que ce qui manque et ne modifie aucune donnee existante.
- * Le premier administrateur est cree separement avec create_admin.php.
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -25,9 +24,8 @@ require_once BASE_PATH . '/config/autoload.php';
 
 if (in_array('--help', $argv, true) || in_array('-h', $argv, true)) {
     echo "Usage : php scripts/seed.php [--demo]\n";
-    echo "  sans option : roles, statuts, types de titres, localisations et parametres\n";
+    echo "  sans option : roles, statuts, types de titres, localisations, parametres et premier administrateur\n";
     echo "  --demo      : ajoute des comptes et formulaires fictifs (interdit en production)\n";
-    echo "Premier administrateur : php scripts/create_admin.php\n";
     exit(0);
 }
 
@@ -38,7 +36,7 @@ if ($demo && APP_ENV === 'production') {
 }
 
 try {
-    $resume = (new DatabaseSeeder(Database::getConnection()))->run(demo: $demo);
+    $resume = (new DatabaseSeeder(Database::getConnection()))->run(admin: true, demo: $demo);
 } catch (Throwable $exception) {
     fwrite(STDERR, "ECHEC SEEDERS : " . $exception->getMessage() . "\nAucune donnee n'a ete ecrite.\n");
     exit(1);

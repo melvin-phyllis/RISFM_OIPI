@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 use App\Core\SqlStatementParser;
-use Database\Seeders\AdminSeeder;
 use Database\Seeders\DatabaseSeeder;
 
 /**
@@ -32,30 +31,10 @@ function risfmLoadTestSql(PDO $db, string $path, string $label): void
 }
 
 /**
- * Remplit une base de test avec les donnees de reference, puis selon les
- * options un administrateur strictement reserve aux tests et les donnees demo.
+ * Remplit une base de test avec les seeders (donnees de reference, et selon
+ * les options premier administrateur et donnees de demonstration).
  */
 function risfmSeed(PDO $db, bool $admin = true, bool $demo = false): void
 {
-    (new DatabaseSeeder($db))->run();
-
-    if ($admin) {
-        $existing = (int) $db->query(
-            "SELECT COUNT(*) FROM utilisateurs WHERE role = 'administrateur'"
-        )->fetchColumn();
-        if ($existing === 0) {
-            (new AdminSeeder(
-                $db,
-                'Administrateur',
-                'Recette',
-                'recette.admin@oipi.test',
-                'Tests automatises',
-                'Recette_Admin2026#'
-            ))->run();
-        }
-    }
-
-    if ($demo) {
-        (new DatabaseSeeder($db))->run(demo: true);
-    }
+    (new DatabaseSeeder($db))->run(admin: $admin, demo: $demo);
 }

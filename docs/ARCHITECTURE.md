@@ -21,10 +21,9 @@ Le RISFM utilise une architecture MVC légère en PHP :
   e-mails, journal) ;
 - `views/` contient les écrans PHP, avec des partials pour les blocs volumineux ;
 - `database/seeders/` écrit les données initiales (`php scripts/seed.php`) :
-  référence (rôles, statuts, types de titres, localisations, paramètres) et
-  données fictives avec `--demo`. Le premier administrateur est créé
-  interactivement par `php scripts/create_admin.php`. `schema.sql` ne contient
-  que la structure.
+  référence (rôles, statuts, types de titres, localisations, paramètres),
+  premier administrateur, et données fictives avec `--demo`. `schema.sql` ne
+  contient que la structure.
 
 Etat actuel de `app/` et `database/`, hors dépendances Composer :
 

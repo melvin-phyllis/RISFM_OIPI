@@ -64,10 +64,10 @@ try {
         throw new RuntimeException('la seconde execution a modifie les donnees : ' . json_encode($second));
     }
 
-    foreach ($db->query('SELECT id, identifiant, mot_de_passe, doit_changer_mdp, role FROM utilisateurs') as $row) {
+    foreach ($db->query('SELECT id, identifiant, mot_de_passe, doit_changer_mdp FROM utilisateurs') as $row) {
         if ((string) $row['identifiant'] !== UserRepository::repo_generatedIdentifiant((int) $row['id'])
             || password_get_info((string) $row['mot_de_passe'])['algo'] === null
-            || (int) $row['doit_changer_mdp'] !== ((string) $row['role'] === 'administrateur' ? 0 : 1)
+            || (int) $row['doit_changer_mdp'] !== 1
         ) {
             throw new RuntimeException("compte #{$row['id']} mal initialise");
         }

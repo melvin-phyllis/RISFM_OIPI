@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 use App\Repositories\Utilisateur\UserRepository;
+use Database\Seeders\AdminSeeder;
 
 require_once dirname(__DIR__) . '/config/config.php';
+
 require_once BASE_PATH . '/config/autoload.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
@@ -55,25 +57,19 @@ try {
         'DB_NAME' => $database,
     ]);
 
-    /** Lance un script CLI sur la base temporaire. */
-    $runScript = static function (
-        string $script,
-        array $arguments = [],
-        array $overrides = [],
-        string $stdin = ''
-    ) use ($environment): array {
+    /** Lance scripts/seed.php sur la base temporaire et retourne son code de sortie. */
+    $seed = static function (array $arguments = [], array $overrides = []) use ($environment): array {
         $pipes = [];
         $process = proc_open(
-            array_merge([PHP_BINARY, BASE_PATH . '/scripts/' . $script], $arguments),
+            array_merge([PHP_BINARY, BASE_PATH . '/scripts/seed.php'], $arguments),
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
             BASE_PATH,
             array_replace($environment, $overrides)
         );
         if (!is_resource($process)) {
-            throw new RuntimeException("Demarrage de {$script} impossible.");
+            throw new RuntimeException('Demarrage de seed.php impossible.');
         }
-        fwrite($pipes[0], $stdin);
         fclose($pipes[0]);
         $stdout = (string) stream_get_contents($pipes[1]);
         $stderr = (string) stream_get_contents($pipes[2]);
@@ -81,9 +77,6 @@ try {
         fclose($pipes[2]);
         return [proc_close($process), $stdout . $stderr];
     };
-    $seed = static fn (array $arguments = [], array $overrides = []): array =>
-        $runScript('seed.php', $arguments, $overrides);
-
     $counts = static fn (): array => $db->query(
         "SELECT (SELECT COUNT(*) FROM roles) AS roles, (SELECT COUNT(*) FROM permissions) AS permissions,
                 (SELECT COUNT(*) FROM role_permissions) AS droits, (SELECT COUNT(*) FROM statuts) AS statuts,
@@ -98,9 +91,23 @@ try {
     $first = $counts();
     if ((int) $first['roles'] !== 4 || (int) $first['statuts'] !== 7 || (int) $first['types'] !== 7
         || (int) $first['localisations'] !== 10 || (int) $first['parametres'] !== 6
-        || (int) $first['permissions'] !== 23 || (int) $first['utilisateurs'] !== 0
+        || (int) $first['permissions'] !== 23 || (int) $first['utilisateurs'] !== 1
     ) {
         throw new RuntimeException('Donnees de reference incompletes : ' . json_encode($first));
+    }
+
+    $admin = $db->query(
+        "SELECT id, identifiant, email, mot_de_passe, role, doit_changer_mdp
+         FROM utilisateurs WHERE role = 'administrateur' LIMIT 1"
+    )->fetch();
+    if (
+        !$admin
+        || (string) $admin['identifiant'] !== UserRepository::repo_generatedIdentifiant((int) $admin['id'])
+        || (string) $admin['email'] !== AdminSeeder::EMAIL
+        || !password_verify(AdminSeeder::MOT_DE_PASSE, (string) $admin['mot_de_passe'])
+        || (int) $admin['doit_changer_mdp'] !== 1
+    ) {
+        throw new RuntimeException('Le premier administrateur cree est invalide.');
     }
 
     // Relance : rien ne doit etre ajoute ni modifie.
@@ -113,48 +120,12 @@ try {
         throw new RuntimeException('Le seed a ecrase un parametre modifie depuis l administration.');
     }
 
-    $adminEmail = 'installation.admin@oipi.test';
-    $adminPassword = 'Installation_Admin2026#';
-    $adminInput = implode("\n", [
-        'Administrateur',
-        'Installation',
-        $adminEmail,
-        'Direction des tests',
-        $adminPassword,
-        $adminPassword,
-        '',
-    ]);
-    [$exit, $output] = $runScript('create_admin.php', stdin: $adminInput);
-    if ($exit !== 0) {
-        throw new RuntimeException('Creation administrateur en echec : ' . trim($output));
-    }
-
-    $admin = $db->query(
-        "SELECT id, identifiant, email, mot_de_passe, role, doit_changer_mdp
-         FROM utilisateurs WHERE role = 'administrateur' LIMIT 1"
-    )->fetch();
-    if (
-        !$admin
-        || (string) $admin['identifiant'] !== UserRepository::repo_generatedIdentifiant((int) $admin['id'])
-        || (string) $admin['email'] !== $adminEmail
-        || !password_verify($adminPassword, (string) $admin['mot_de_passe'])
-        || (int) $admin['doit_changer_mdp'] !== 0
-    ) {
-        throw new RuntimeException('Le premier administrateur cree est invalide.');
-    }
-
-    [$exit] = $runScript('create_admin.php', stdin: $adminInput);
-    if ($exit === 0 || (int) $counts()['utilisateurs'] !== 1) {
-        throw new RuntimeException('Un second administrateur initial ne doit pas pouvoir etre cree.');
-    }
-
-    $withAdmin = $counts();
     [$exit] = $seed(['--demo'], ['APP_ENV' => 'production']);
-    if ($exit === 0 || $counts() !== $withAdmin) {
+    if ($exit === 0 || $counts() !== $first) {
         throw new RuntimeException('Les donnees de demonstration doivent etre refusees en production.');
     }
 
-    echo "INSTALLATION INITIALE OK: schema vide, references idempotentes et administrateur interactif verifie.\n";
+    echo "INSTALLATION INITIALE OK: schema sans donnee, seeders complets, relance sans effet et admin verifie.\n";
 } finally {
     if ($created) {
         $server->exec('DROP DATABASE IF EXISTS ' . $quotedDatabase);

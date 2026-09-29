@@ -262,11 +262,11 @@ correspondances avant/apres sont ajoutees au journal. Les anciennes valeurs de
 volontairement intactes car elles decrivent l'identifiant utilise au moment de
 l'evenement.
 
-Depuis le durcissement P0, une installation neuve ne livre plus aucun compte.
-Le premier administrateur est cree interactivement avec
-`php scripts/create_admin.php`, sans secret dans le schema ou l'historique du
-terminal. Les comptes et formulaires d'exemple sont limites a `demo_data.sql`,
-qui est explicitement interdit en production.
+Une installation neuve cree le premier administrateur avec
+`php scripts/seed.php` : `admin@oipi.ci` / `Admin_Oipi2026#`. L'application
+impose le changement de ce mot de passe public lors de la premiere connexion.
+Les comptes et formulaires d'exemple sont ajoutes uniquement avec `--demo`,
+option explicitement interdite en production.
 
 Tests : collision croisee, ID a sept chiffres, double execution idempotente et
 verification apres application sur la base locale. Script de test isole :

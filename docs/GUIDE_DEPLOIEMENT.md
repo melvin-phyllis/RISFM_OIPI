@@ -135,15 +135,16 @@ cd /home/COMPTE_CPANEL/risfm
 php scripts/migrate.php
 php scripts/migrate.php --status
 php scripts/seed.php
-php scripts/create_admin.php
 php scripts/check_production.php
 ```
 
-`seed.php` ecrit les donnees de reference. `create_admin.php` demande
-interactivement l’adresse e-mail et le mot de passe du premier administrateur :
-aucun secret administrateur par defaut n’est livre ou conserve dans Git. Si
-`php` ne correspond pas a la version choisie dans MultiPHP Manager, utiliser
-le chemin fourni par l'hebergeur, par exemple `/usr/local/bin/ea-php83`.
+`seed.php` ecrit les donnees de reference et cree le premier administrateur
+(`admin@oipi.ci`, mot de passe `Admin_Oipi2026#`, voir
+`database/seeders/AdminSeeder.php`). Ce mot de passe etant public, se connecter
+immediatement pour le remplacer : l'application l'exige a la premiere
+connexion. Si `php` ne correspond pas a la version choisie dans MultiPHP
+Manager, utiliser le chemin fourni par l'hebergeur, par exemple
+`/usr/local/bin/ea-php83`.
 
 Sans Terminal ni SSH, le deploiement initial peut etre prepare localement puis
 importe avec phpMyAdmin, mais l'application ne pourra pas etre maintenue de
@@ -239,20 +240,20 @@ de la section 8. Verifier en priorite :
    ```
 5. Ouvrir une invite de commande dans le dossier `RISFM/` et executer `composer install`.
 6. Executer `php scripts/migrate.php` afin d'enregistrer et verifier la version du schema.
-7. Executer `php scripts/seed.php` pour ecrire les donnees de reference,
-   puis `php scripts/create_admin.php` pour creer interactivement le premier
-   administrateur. Ajouter `--demo` au seeder seulement sur un poste de test.
-8. Acceder a `http://localhost/RISFM/public/login` et se connecter avec
-   l’adresse e-mail et le mot de passe choisis a l’etape precedente.
+7. Executer `php scripts/seed.php` pour ecrire les donnees de reference et
+   creer le premier administrateur (ajouter `--demo` pour des donnees fictives).
+8. Acceder a `http://localhost/RISFM/public/login`, se connecter avec
+   `admin@oipi.ci` / `Admin_Oipi2026#`, puis choisir le nouveau mot de passe
+   demande.
 
 ### Comptes initiaux d'une installation neuve
 
 `schema.sql` ne cree que la structure. `php scripts/seed.php` ecrit ensuite
-les donnees de reference sans créer de compte. Le premier administrateur est
-cree avec `php scripts/create_admin.php` ; son identifiant
-`OIPI-RISFM-NNNNNN` est derive de son identifiant interne. Aucun mot de passe
-administrateur n'est enregistre dans le code. Le seeder n'ajoute que ce qui
-manque et ne modifie jamais un compte ou un parametre existant.
+les donnees de reference et cree le premier administrateur (`admin@oipi.ci`),
+dont l'identifiant `OIPI-RISFM-NNNNNN` est derive de son identifiant interne.
+Son mot de passe initial figure dans le code : il doit etre change a la
+premiere connexion, ce que l'application impose. La commande n'ajoute que ce
+qui manque et ne modifie jamais un compte ou un parametre existant.
 
 `php scripts/seed.php --demo` ajoute des comptes et formulaires fictifs. Il est
 reserve aux postes de demonstration et refuse de s'executer quand
@@ -427,8 +428,8 @@ server {
 ## 8. Verification post-installation (checklist)
 
 - [ ] La page `/login` s'affiche avec le logo et le style OIPI.
-- [ ] Les donnees de reference ont ete creees avec `php scripts/seed.php`.
-- [ ] Le premier administrateur a ete cree avec `php scripts/create_admin.php` et sa connexion fonctionne.
+- [ ] Les donnees et le premier administrateur ont ete crees avec `php scripts/seed.php`.
+- [ ] La connexion avec `admin@oipi.ci` fonctionne et le mot de passe initial a ete remplace.
 - [ ] Le tableau de bord administrateur affiche les cartes KPI (a 0 tant qu'aucun formulaire n'est saisi).
 - [ ] La creation d'un formulaire manquant genere bien un numero automatique (`FM-AAAA-NNNNNN`).
 - [ ] Les exports Excel/PDF/Word/CSV se telechargent sans erreur (necessite `composer install` reussi).

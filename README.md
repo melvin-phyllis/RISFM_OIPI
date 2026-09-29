@@ -98,18 +98,19 @@ php scripts/migrate.php --status
 
 ```bash
 php scripts/seed.php
-php scripts/create_admin.php
 ```
 
-`seed.php` écrit les rôles, statuts, types de titres, localisations et
-paramètres. La commande peut être relancée sans risque : elle n’ajoute que ce
-qui manque. `create_admin.php` demande ensuite le nom, l’adresse e-mail et le
-mot de passe du premier administrateur directement dans le terminal. Aucun
-identifiant ni mot de passe administrateur par défaut n’est conservé dans le
-code ou dans Git.
+Les seeders (`database/seeders/`) écrivent les rôles, statuts, types de titres,
+localisations, paramètres et le premier administrateur :
 
-Sur un poste de test uniquement, `php scripts/seed.php --demo` ajoute aussi
-des comptes et formulaires fictifs. Il faut d’abord avoir créé l’administrateur.
+| E-mail | Mot de passe |
+|---|---|
+| `admin@oipi.ci` | `Admin_Oipi2026#` |
+
+Ce mot de passe est public (il est dans le code) : l’application impose d’en
+choisir un nouveau à la première connexion. La commande peut être relancée sans
+risque : elle n’ajoute que ce qui manque. Sur un poste de test,
+`php scripts/seed.php --demo` ajoute aussi des comptes et formulaires fictifs.
 
 ### 5. Lancer l’application
 
@@ -117,9 +118,9 @@ des comptes et formulaires fictifs. Il faut d’abord avoir créé l’administr
 php -S localhost:8000 -t public public/router.php
 ```
 
-Ouvrir [http://localhost:8000/login](http://localhost:8000/login), puis utiliser
-l’adresse e-mail et le mot de passe choisis avec `create_admin.php`. Arrêter
-le serveur avec `Ctrl+C`.
+Ouvrir [http://localhost:8000/login](http://localhost:8000/login), puis se
+connecter avec `admin@oipi.ci` et `Admin_Oipi2026#`. Arrêter le serveur avec
+`Ctrl+C`.
 
 ## Premier parcours dans l’application
 
@@ -172,8 +173,7 @@ dépôt Git.
 | Lancer sur le port 8001 | `php -S localhost:8001 -t public public/router.php` |
 | Appliquer les mises à jour SQL | `php scripts/migrate.php` |
 | Voir l’état des migrations | `php scripts/migrate.php --status` |
-| Remplir les données de référence | `php scripts/seed.php` |
-| Créer le premier administrateur | `php scripts/create_admin.php` |
+| Remplir les données et créer le premier administrateur | `php scripts/seed.php` |
 | Ajouter les données de démonstration (poste de test) | `php scripts/seed.php --demo` |
 | Vérifier la configuration de production | `php scripts/check_production.php` |
 | Vérifier les rappels | `php scripts/relances.php --status` |
@@ -227,8 +227,9 @@ Résumé du déploiement :
 4. téléverser l’application hors de `public_html`, installer `vendor/` et créer
    un fichier `.env` de production ;
 5. faire pointer le domaine vers `public/` et activer HTTPS avec AutoSSL ;
-6. depuis **Terminal** ou SSH, exécuter les migrations, `php scripts/seed.php`,
-   puis `php scripts/create_admin.php` et contrôler la configuration ;
+6. depuis **Terminal** ou SSH, exécuter les migrations puis les seeders
+   (`php scripts/seed.php`, qui crée le premier administrateur) et contrôler la
+   configuration ;
 7. créer les tâches quotidiennes dans **Cron Jobs** pour les rappels et la
    maintenance.
 
@@ -444,9 +445,8 @@ php scripts/migrate.php --status
 ### Step 4 : Remplir les données et créer le premier administrateur
 ```bash
 php scripts/seed.php
-php scripts/create_admin.php
 ```
-*Le second script demande interactivement l’adresse e-mail et le mot de passe du premier administrateur. Aucun secret administrateur par défaut n’est livré.*
+*Crée les données de référence et l'administrateur `admin@oipi.ci` (mot de passe `Admin_Oipi2026#`, à changer à la première connexion). Identifiant généré : `OIPI-RISFM-000001`.*
 
 ### Step 5 : Configurer le moteur de relances (Cron)
 ```bash
