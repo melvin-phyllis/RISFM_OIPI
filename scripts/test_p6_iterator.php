@@ -1,28 +1,23 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Formulaire\FormulaireRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
-$model = new FormulaireModel();
+$model = new FormulaireRepository();
 $filters = [];
-$expected = $model->searchCount($filters);
+$expected = $model->repo_searchCount($filters);
 $seen = [];
 $previousYear = null;
 $previousId = null;
 $count = 0;
 
 // Deux lignes par lot forcent plusieurs requetes meme avec les donnees de demo.
-foreach ($model->iterateForExport($filters, null, 2) as $row) {
+foreach ($model->repo_iterateForExport($filters, null, 2) as $row) {
     foreach (['id', 'type_libelle', 'annee', 'numero_formulaire', 'statut_libelle'] as $requiredColumn) {
         if (!array_key_exists($requiredColumn, $row)) {
             fwrite(STDERR, "ECHEC: colonne d'export absente : {$requiredColumn}.\n");
@@ -61,9 +56,9 @@ $sample = Database::getConnection()->query(
 )->fetchColumn();
 if (is_string($sample) && $sample !== '') {
     $keywordFilters = ['mot_cle' => $sample];
-    $keywordExpected = $model->searchCount($keywordFilters);
+    $keywordExpected = $model->repo_searchCount($keywordFilters);
     $keywordCount = 0;
-    foreach ($model->iterateForExport($keywordFilters, null, 1) as $_row) {
+    foreach ($model->repo_iterateForExport($keywordFilters, null, 1) as $_row) {
         $keywordCount++;
     }
     if ($keywordCount !== $keywordExpected || $keywordCount < 1) {

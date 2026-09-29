@@ -1,17 +1,12 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Utilisateur\UserRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 $db = Database::getConnection();
 $users = $db->query(
@@ -23,7 +18,7 @@ if ($users === []) {
 }
 
 foreach ($users as $user) {
-    $expected = UserModel::generatedIdentifiant((int) $user['id']);
+    $expected = UserRepository::repo_generatedIdentifiant((int) $user['id']);
     if ((string) $user['identifiant'] !== $expected) {
         fwrite(STDERR, "ECHEC: compte #{$user['id']} non normalise.\n");
         exit(1);
@@ -65,15 +60,18 @@ if ((int) $legacyLogin !== 0) {
     exit(1);
 }
 
+// Le schema ne livre aucune donnee, et les seeders n'utilisent que des
+// e-mails : les identifiants sont toujours derives de l'ID (OIPI-RISFM-XXXXXX).
 $schema = (string) file_get_contents(BASE_PATH . '/schema.sql');
-$demo = (string) file_get_contents(BASE_PATH . '/demo_data.sql');
-if (str_contains($schema, "'OIPI-RISFM-000001'")
-    || str_contains($schema, "'Admin@2026'")
-    || !str_contains($demo, "'demo.admin@oipi.test'")
-    || str_contains($schema, "'service.documentation'")
-    || str_contains($schema, "'chef.projet'")
-    || str_contains($demo, "'service.documentation'")
-    || str_contains($demo, "'chef.projet'")
+$seeders = '';
+foreach (glob(BASE_PATH . '/database/seeders/*.php') ?: [] as $seederFile) {
+    $seeders .= (string) file_get_contents($seederFile);
+}
+if (str_contains($schema, 'INSERT INTO')
+    || !str_contains($seeders, "'demo.documentation@oipi.test'")
+    || str_contains($seeders, "'OIPI-RISFM-")
+    || str_contains($seeders, "'service.documentation'")
+    || str_contains($seeders, "'chef.projet'")
 ) {
     fwrite(STDERR, "ECHEC: scripts de livraison non normalises.\n");
     exit(1);

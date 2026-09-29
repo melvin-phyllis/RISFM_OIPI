@@ -1,17 +1,12 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\DatabaseBackup;
+use App\Core\Security;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 if (!Security::ensureDirectory(STORAGE_PATH . '/tmp')) {
     fwrite(STDERR, "ECHEC: dossier temporaire indisponible.\n");

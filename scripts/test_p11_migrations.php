@@ -1,17 +1,12 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\MigrationRunner;
+use App\Core\SqlStatementParser;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
 $config = require BASE_PATH . '/config/database.php';
@@ -70,7 +65,7 @@ try {
             throw new RuntimeException('Import schema.sql instruction #' . ($position + 1) . ' : ' . $exception->getMessage(), 0, $exception);
         }
     }
-    risfmLoadTestSql($db, BASE_PATH . '/demo_data.sql', 'demo_data.sql');
+    risfmSeed($db, demo: true);
 
     $userId = (int) $db->query('SELECT id FROM utilisateurs ORDER BY id LIMIT 1')->fetchColumn();
     if ($userId <= 0) {

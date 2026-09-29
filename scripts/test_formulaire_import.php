@@ -1,26 +1,22 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Formulaire\FormulaireRepository;
+use App\Services\Formulaire\FormulaireImportService;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 $composerAutoload = BASE_PATH . '/vendor/autoload.php';
 if (is_file($composerAutoload)) {
     require_once $composerAutoload;
 }
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 $db = Database::getConnection();
 $type = $db->query('SELECT * FROM types_titres WHERE actif = 1 ORDER BY ordre, id LIMIT 1')->fetch();
@@ -78,13 +74,13 @@ try {
     ], ';');
     fclose($handle);
 
-    $inspection = $service->inspectFile([
+    $inspection = $service->srv_inspectFile([
         'error' => UPLOAD_ERR_OK,
         'tmp_name' => $badCsv,
         'size' => filesize($badCsv),
         'name' => 'registre.csv',
     ]);
-    $badAnalysis = $service->analyse($badCsv, $inspection['extension']);
+    $badAnalysis = $service->srv_analyse($badCsv, $inspection['extension']);
     $assert(
         $badAnalysis['total'] === 3
             && $badAnalysis['valid_count'] === 1
@@ -103,13 +99,13 @@ try {
     );
     $blocked = false;
     try {
-        $service->import($badCsv, 'csv', $actorId);
+        $service->srv_import($badCsv, 'csv', $actorId);
     } catch (DomainException) {
         $blocked = true;
     }
     $assert($blocked, 'une ligne invalide doit bloquer tout import partiel');
     $assert(
-        (new FormulaireModel())->count('numero_formulaire = :numero', ['numero' => $minimalNumber]) === 0,
+        (new FormulaireRepository())->repo_count('numero_formulaire = :numero', ['numero' => $minimalNumber]) === 0,
         'le fichier invalide ne doit creer aucun formulaire'
     );
 
@@ -145,13 +141,13 @@ try {
     (new Xlsx($spreadsheet))->save($xlsxPath);
     $spreadsheet->disconnectWorksheets();
 
-    $xlsxInspection = $service->inspectFile([
+    $xlsxInspection = $service->srv_inspectFile([
         'error' => UPLOAD_ERR_OK,
         'tmp_name' => $xlsxPath,
         'size' => filesize($xlsxPath),
         'name' => 'registre.xlsx',
     ]);
-    $analysis = $service->analyse($xlsxPath, $xlsxInspection['extension']);
+    $analysis = $service->srv_analyse($xlsxPath, $xlsxInspection['extension']);
     $assert(
         $analysis['header_row'] === 4
             && $analysis['total'] === 2
@@ -161,14 +157,14 @@ try {
 
     $db->beginTransaction();
     try {
-        $result = $service->import($xlsxPath, 'xlsx', $actorId);
+        $result = $service->srv_import($xlsxPath, 'xlsx', $actorId);
         $resolvedId = (int) $db->query(
             "SELECT id FROM formulaires_manquants
              WHERE numero_formulaire = " . $db->quote($resolvedNumber) . ' LIMIT 1'
         )->fetchColumn();
         $assert($result['imported'] === 2, 'les deux lignes valides doivent etre importees atomiquement');
         $assert(
-            (new FormulaireModel())->count(
+            (new FormulaireRepository())->repo_count(
                 'numero_formulaire IN (:minimal, :resolved)',
                 ['minimal' => $minimalNumber, 'resolved' => $resolvedNumber]
             ) === 2,
@@ -204,8 +200,8 @@ try {
     // Les modeles telechargeables doivent etre effectivement generables.
     $templateCsv = $temp('risfm_modele_csv_');
     $templateXlsx = $temp('risfm_modele_xlsx_');
-    $service->createCsvTemplate($templateCsv);
-    $service->createXlsxTemplate($templateXlsx);
+    $service->srv_createCsvTemplate($templateCsv);
+    $service->srv_createXlsxTemplate($templateXlsx);
     $assert(filesize($templateCsv) > 50 && filesize($templateXlsx) > 1000, 'les modeles CSV et XLSX doivent etre generes');
 } catch (Throwable $e) {
     $failures[] = 'exception inattendue : ' . $e->getMessage();

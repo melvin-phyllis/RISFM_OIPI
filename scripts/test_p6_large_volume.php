@@ -1,17 +1,12 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Formulaire\FormulaireRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 $db = Database::getConnection();
 $typeId = (int) $db->query('SELECT id FROM types_titres ORDER BY id LIMIT 1')->fetchColumn();
@@ -58,11 +53,11 @@ try {
         ]);
     }
 
-    $model = new FormulaireModel();
-    $expected = $model->searchCount([]);
+    $model = new FormulaireRepository();
+    $expected = $model->repo_searchCount([]);
     $count = 0;
     $seen = [];
-    foreach ($model->iterateForExport([], null, 500) as $row) {
+    foreach ($model->repo_iterateForExport([], null, 500) as $row) {
         $id = (int) $row['id'];
         if (isset($seen[$id])) {
             throw new RuntimeException("Le formulaire temporaire #{$id} est duplique.");

@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Http\Controllers\Formulaire\ExportController;
+
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
@@ -8,23 +11,15 @@ if (PHP_SAPI !== 'cli') {
 
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 require_once BASE_PATH . '/vendor/autoload.php';
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 
 $formats = [
-    'csv' => 'formulairesCsv',
-    'xlsx' => 'formulairesExcel',
-    'pdf' => 'formulairesPdf',
-    'docx' => 'formulairesWord',
+    'csv' => 'ctrl_formulairesCsv',
+    'xlsx' => 'ctrl_formulairesExcel',
+    'pdf' => 'ctrl_formulairesPdf',
+    'docx' => 'ctrl_formulairesWord',
 ];
 $format = strtolower((string) ($argv[1] ?? ''));
 if (!isset($formats[$format])) {

@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Core\ReminderRunState;
+use App\Core\SqlStatementParser;
+use App\Services\Mission\MissionReminderService;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
 $composerAutoload = BASE_PATH . '/vendor/autoload.php';
@@ -12,16 +17,8 @@ if (!class_exists(\PHPMailer\PHPMailer\PHPMailer::class)) {
     throw new RuntimeException('PHPMailer doit etre charge dans le contexte CLI des relances.');
 }
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/config/autoload.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
 if ((string) env('RISFM_REMINDER_CHILD', '0') !== '1') {
@@ -56,7 +53,7 @@ if ((string) env('RISFM_REMINDER_CHILD', '0') !== '1') {
         foreach (SqlStatementParser::parse($schema) as $statement) {
             $db->exec($statement);
         }
-        risfmLoadTestSql($db, BASE_PATH . '/demo_data.sql', 'demo_data.sql');
+        risfmSeed($db, demo: true);
         unset($db);
 
         $environment = getenv();
@@ -187,7 +184,7 @@ $assert = static function (bool $condition, string $message) use (&$failures): v
 $count = static fn (string $table): int => (int) Database::getConnection()->query("SELECT COUNT(*) FROM {$table}")->fetchColumn();
 $service = new MissionReminderService();
 $today = new DateTimeImmutable('2026-07-21');
-$preview = $service->preview($today);
+$preview = $service->srv_preview($today);
 $assert(
     $preview['missions'] === 4
         && $preview['nouvelles_relances'] === 4
@@ -196,7 +193,7 @@ $assert(
         && $count('notifications') === 0,
     'l apercu doit annoncer les actions sans aucune ecriture ni ancien cycle'
 );
-$first = $service->run($today);
+$first = $service->srv_run($today);
 $assert($first['missions'] === 4, 'seules les missions du cycle courant doivent etre traitees');
 $assert($first['relances'] === 4, 'J-2, jour J, J+1 et escalade J+7 doivent creer quatre relances');
 $assert($first['notifications'] === 4 && $first['emails'] === 4 && $first['erreurs'] === 0, 'chaque relance doit produire notification et e-mail');
@@ -215,10 +212,10 @@ $assert(
     'chaque execution doit publier un heartbeat exploitable par le back-office'
 );
 
-$second = $service->run($today);
+$second = $service->srv_run($today);
 $assert($second['relances'] === 0 && $count('relances_missions') === 4 && $count('notifications') === 4, 'une seconde execution le meme jour ne doit rien dupliquer');
 
-$third = $service->run(new DateTimeImmutable('2026-07-23'));
+$third = $service->srv_run(new DateTimeImmutable('2026-07-23'));
 $assert($third['relances'] === 3, 'la cadence doit generer le jour J et les retards multiples de trois jours');
 $assert($count('relances_missions') === 7, 'les nouvelles dates doivent conserver un historique distinct');
 
@@ -226,7 +223,7 @@ $db->prepare("UPDATE missions_recherche SET etat = 'terminee', date_cloture = NO
 $closedCount = $db->prepare('SELECT COUNT(*) FROM relances_missions WHERE mission_id = :id');
 $closedCount->execute(['id' => $missionIds[1]]);
 $beforeClosedCheck = (int) $closedCount->fetchColumn();
-$service->run(new DateTimeImmutable('2026-07-24'));
+$service->srv_run(new DateTimeImmutable('2026-07-24'));
 $closedCount->execute(['id' => $missionIds[1]]);
 $afterClosedCheck = (int) $closedCount->fetchColumn();
 $assert($afterClosedCheck === $beforeClosedCheck, 'une mission terminee ne doit plus etre relancee');

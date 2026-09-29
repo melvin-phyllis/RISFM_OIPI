@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\SqlStatementParser;
+
 /**
  * Commande unique de recette avant livraison.
  *
@@ -11,15 +13,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
 /** @return array<string,string> */
@@ -139,7 +133,7 @@ try {
             );
         }
     }
-    risfmLoadTestSql($db, BASE_PATH . '/demo_data.sql', 'demo_data.sql');
+    risfmSeed($db, demo: true);
 
     $environment = recetteEnvironment([
         'APP_ENV' => 'testing',
@@ -162,10 +156,11 @@ try {
     $tests = [
         ['Installation initiale securisee', 'test_initial_install.php', 60],
         ['P5 , validations metier', 'test_p5_validation.php', 60],
+        ['Validation des formulaires (FormRequest)', 'test_form_requests.php', 30],
         ['Import , CSV et Excel', 'test_formulaire_import.php', 120],
         ['P6 , iterateur export', 'test_p6_iterator.php', 60],
         ['P6 , volume superieur a 5 000', 'test_p6_large_volume.php', 120],
-        ['P7 , donnees de demonstration', 'test_p7_demo_data.php', 60],
+        ['P7 , seeders de demonstration', 'test_p7_demo_data.php', 60],
         ['P7 , migration des identifiants', 'test_p7_migration.php', 60],
         ['P7 , etat final des identifiants', 'test_p7_state.php', 60],
         ['P8 , resilience MySQL', 'test_p8_resilience.php', 60],

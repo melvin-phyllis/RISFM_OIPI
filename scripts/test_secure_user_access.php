@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\AppMailer;
+use App\Core\Database;
+use App\Core\SqlStatementParser;
+use App\Http\Controllers\Formulaire\FormulaireController;
+use App\Http\Controllers\Utilisateur\UserController;
+use App\Repositories\Formulaire\FormulaireRepository;
+use App\Repositories\Mission\MissionRechercheRepository;
+use App\Repositories\Utilisateur\TokenResetRepository;
+use App\Repositories\Utilisateur\UserRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/config/autoload.php';
+require_once BASE_PATH . '/scripts/test_support.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 
 if ((string) env('RISFM_SECURE_ACCESS_CHILD', '0') !== '1') {
     $config = require BASE_PATH . '/config/database.php';
@@ -47,6 +50,8 @@ if ((string) env('RISFM_SECURE_ACCESS_CHILD', '0') !== '1') {
         foreach (SqlStatementParser::parse($schema) as $statement) {
             $db->exec($statement);
         }
+        // Donnees de reference seules : le test cree lui-meme ses comptes.
+        risfmSeed($db, admin: false);
         unset($db);
 
         $environment = getenv();
@@ -99,9 +104,9 @@ $assert = static function (bool $condition, string $message) use (&$failures): v
     }
 };
 
-$users = new UserModel();
+$users = new UserRepository();
 $roleId = (int) Database::getConnection()->query("SELECT id FROM roles WHERE code = 'consultation'")->fetchColumn();
-$created = $users->insertWithGeneratedIdentifiant([
+$created = $users->repo_insertWithGeneratedIdentifiant([
     'nom' => 'Invitation',
     'prenoms' => 'Securisee',
     'email' => 'invitation.securisee@example.test',
@@ -112,12 +117,12 @@ $created = $users->insertWithGeneratedIdentifiant([
     'actif' => 1,
     'doit_changer_mdp' => 1,
 ]);
-$user = $users->find((int) $created['id']);
+$user = $users->repo_find((int) $created['id']);
 $assert($user !== null, 'le compte invite doit etre cree');
 $assert(str_starts_with((string) ($user['identifiant'] ?? ''), 'OIPI-RISFM-'), 'l identifiant doit etre genere par le systeme');
 
-$tokens = new TokenResetModel();
-$firstToken = $tokens->creer((int) $created['id'], 60);
+$tokens = new TokenResetRepository();
+$firstToken = $tokens->repo_creer((int) $created['id'], 60);
 $firstHash = (string) Database::getConnection()->query(
     'SELECT token_hash FROM tokens_reinitialisation ORDER BY id DESC LIMIT 1'
 )->fetchColumn();
@@ -137,10 +142,10 @@ $assert(str_contains($message['text'], $firstToken), 'le destinataire doit recev
 $assert(!str_contains(mb_strtolower($message['text']), 'mot de passe temporaire'), 'aucun mot de passe temporaire ne doit etre transmis');
 
 $versionBefore = (int) ($user['session_version'] ?? 0);
-$users->setPassword((int) $created['id'], bin2hex(random_bytes(24)), true);
-$assert($tokens->valide($firstToken) === null, 'la revocation doit invalider le premier lien');
-$secondToken = $tokens->creer((int) $created['id'], 60);
-$updated = $users->find((int) $created['id']);
+$users->repo_setPassword((int) $created['id'], bin2hex(random_bytes(24)), true);
+$assert($tokens->repo_valide($firstToken) === null, 'la revocation doit invalider le premier lien');
+$secondToken = $tokens->repo_creer((int) $created['id'], 60);
+$updated = $users->repo_find((int) $created['id']);
 $assert($secondToken !== $firstToken, 'un renvoi doit produire un nouveau secret');
 $assert((int) ($updated['session_version'] ?? 0) === $versionBefore + 1, 'la revocation doit incrementer la version de session');
 
@@ -152,21 +157,21 @@ foreach ($routes as [$method, $path, $controller, $action]) {
     $hasLegacySearchRoute = $hasLegacySearchRoute || (
         $method === 'GET'
         && $path === '/recherche'
-        && $controller === 'FormulaireController'
-        && $action === 'redirectLegacySearch'
+        && $controller === FormulaireController::class
+        && $action === 'ctrl_redirectLegacySearch'
     );
     $hasCreateUserRoute = $hasCreateUserRoute || (
         $method === 'GET'
         && $path === '/utilisateurs/ajouter'
-        && $controller === 'UserController'
-        && $action === 'create'
+        && $controller === UserController::class
+        && $action === 'ctrl_create'
     );
 }
-$assert(!is_file(BASE_PATH . '/controllers/RechercheController.php'), 'le controleur RechercheController obsolete doit etre supprime');
+$assert(!is_file(BASE_PATH . '/app/Http/Controllers/Formulaire/RechercheController.php'), 'le controleur RechercheController obsolete doit etre supprime');
 $assert($hasLegacySearchRoute, 'l ancienne URL doit rester une redirection de compatibilite');
-$assert(method_exists(FormulaireController::class, 'redirectLegacySearch'), 'la redirection doit etre portee par le registre');
+$assert(method_exists(FormulaireController::class, 'ctrl_redirectLegacySearch'), 'la redirection doit etre portee par le registre');
 
-$userControllerSource = file_get_contents(BASE_PATH . '/controllers/UserController.php');
+$userControllerSource = file_get_contents(BASE_PATH . '/app/Http/Controllers/Utilisateur/UserController.php');
 $userListSource = file_get_contents(BASE_PATH . '/views/users/list.php');
 $assert($hasCreateUserRoute, 'l ancienne URL de creation doit rester compatible');
 $assert(
@@ -194,7 +199,7 @@ $assert(
 // desactivation et la perte du role metier ; l'historique interdit toujours
 // la suppression physique du compte.
 $agentRoleId = (int) Database::getConnection()->query("SELECT id FROM roles WHERE code = 'agent'")->fetchColumn();
-$agentCreated = $users->insertWithGeneratedIdentifiant([
+$agentCreated = $users->repo_insertWithGeneratedIdentifiant([
     'nom' => 'Responsable',
     'prenoms' => 'Cycle de vie',
     'email' => 'cycle.vie@example.test',
@@ -209,8 +214,8 @@ $db = Database::getConnection();
 $typeId = (int) $db->query('SELECT id FROM types_titres ORDER BY id LIMIT 1')->fetchColumn();
 $statusId = (int) $db->query("SELECT id FROM statuts WHERE code = 'en_recherche' LIMIT 1")->fetchColumn();
 $locationId = (int) $db->query('SELECT id FROM localisations ORDER BY id LIMIT 1')->fetchColumn();
-$form = new FormulaireModel();
-$formId = $form->insert([
+$form = new FormulaireRepository();
+$formId = $form->repo_insert([
     'numero_auto' => 'FM-' . date('Y') . '-LIFECYCLE',
     'type_titre_id' => $typeId,
     'annee' => (int) date('Y'),
@@ -219,8 +224,8 @@ $formId = $form->insert([
     'priorite' => 'Normale',
     'niveau_urgence' => 'Moyen',
 ]);
-$mission = new MissionRechercheModel();
-$missionId = $mission->insert([
+$mission = new MissionRechercheRepository();
+$missionId = $mission->repo_insert([
     'formulaire_id' => $formId,
     'localisation_id' => $locationId,
     'responsable_id' => (int) $agentCreated['id'],
@@ -228,20 +233,20 @@ $missionId = $mission->insert([
     'priorite' => 'Normale',
 ]);
 
-$summary = $users->missionLifecycleSummary((int) $agentCreated['id']);
+$summary = $users->repo_missionLifecycleSummary((int) $agentCreated['id']);
 $assert($summary['missions_actives'] === 1, 'la mission active du responsable doit etre comptee');
 $assert($summary['missions_liees'] === 1, 'la mission doit appartenir a son historique');
 
-$assert($users->toggleActive((int) $agentCreated['id']), 'la desactivation doit suspendre la mission et desactiver le compte');
-$deactivatedUser = $users->find((int) $agentCreated['id']);
+$assert($users->repo_toggleActive((int) $agentCreated['id']), 'la desactivation doit suspendre la mission et desactiver le compte');
+$deactivatedUser = $users->repo_find((int) $agentCreated['id']);
 $assert((int) ($deactivatedUser['actif'] ?? 1) === 0, 'le compte doit etre desactive');
 
-$missionState = (string) ($mission->find($missionId)['etat'] ?? '');
+$missionState = (string) ($mission->repo_find($missionId)['etat'] ?? '');
 $assert($missionState === 'annulee', 'la mission active doit etre annulee/suspendue lors de la desactivation');
 
 $deleteBlocked = false;
 try {
-    $users->deleteWithRevocation((int) $agentCreated['id']);
+    $users->repo_deleteWithRevocation((int) $agentCreated['id']);
 } catch (DomainException) {
     $deleteBlocked = true;
 }
@@ -249,7 +254,7 @@ $assert($deleteBlocked, 'la suppression applicative doit etre bloquee pour un re
 
 $historyDeleteBlocked = false;
 try {
-    $users->deleteWithRevocation((int) $agentCreated['id']);
+    $users->repo_deleteWithRevocation((int) $agentCreated['id']);
 } catch (DomainException) {
     $historyDeleteBlocked = true;
 }
@@ -261,9 +266,9 @@ try {
 } catch (PDOException $exception) {
     $databaseGuardWorked = (int) ($exception->errorInfo[1] ?? 0) === 1451;
 }
-$versionBeforeManual = (int) ($users->find((int) $agentCreated['id'])['session_version'] ?? 0);
-$users->setPassword((int) $agentCreated['id'], 'Oipi2026!ManualTest', true);
-$updatedUserManual = $users->find((int) $agentCreated['id']);
+$versionBeforeManual = (int) ($users->repo_find((int) $agentCreated['id'])['session_version'] ?? 0);
+$users->repo_setPassword((int) $agentCreated['id'], 'Oipi2026!ManualTest', true);
+$updatedUserManual = $users->repo_find((int) $agentCreated['id']);
 $assert((int) ($updatedUserManual['doit_changer_mdp'] ?? 0) === 1, 'le mot de passe defini manuellement doit forcer le changement à la premiere connexion');
 $assert((int) ($updatedUserManual['session_version'] ?? 0) === $versionBeforeManual + 1, 'la redefinition manuelle doit incrementer la version de session');
 

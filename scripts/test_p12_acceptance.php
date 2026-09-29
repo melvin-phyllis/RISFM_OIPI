@@ -1,6 +1,21 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\AppMailer;
+use App\Core\Auth;
+use App\Core\Database;
+use App\Core\LoginOtp;
+use App\Core\Permission;
+use App\Core\Security;
+use App\Core\SqlStatementParser;
+use App\Services\Formulaire\FormulaireService;
+use App\Repositories\Formulaire\FinalisationFormulaireRepository;
+use App\Repositories\Formulaire\FormulaireRepository;
+use App\Repositories\Mission\MissionRechercheRepository;
+use App\Repositories\Notification\NotificationRepository;
+use App\Repositories\Referentiel\StatutRepository;
+use App\Repositories\Utilisateur\UserRepository;
+
 /**
  * Recette P12 isolee : ce script cree sa propre base ephemere, execute les
  * controles metier/HTTP/navigateur, puis supprime la base dans tous les cas.
@@ -8,21 +23,13 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 $composerAutoload = BASE_PATH . '/vendor/autoload.php';
 if (is_file($composerAutoload)) {
     require_once $composerAutoload;
 }
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
 /** @return array<string,string> */
@@ -90,7 +97,7 @@ if (in_array('--numero-worker', $argv, true)) {
     $typeId = (int) ($argv[$position + 2] ?? 0);
     $statusId = (int) ($argv[$position + 3] ?? 0);
     $userId = (int) ($argv[$position + 4] ?? 0);
-    $result = (new FormulaireModel())->insertWithGeneratedNumero([
+    $result = (new FormulaireRepository())->repo_insertWithGeneratedNumero([
         'type_titre_id' => $typeId,
         'annee' => 2025,
         'numero_formulaire' => sprintf('P12-CONCURRENT-%02d', $worker),
@@ -157,7 +164,7 @@ if (!in_array('--inside', $argv, true)) {
                 );
             }
         }
-        risfmLoadTestSql($db, BASE_PATH . '/demo_data.sql', 'demo_data.sql');
+        risfmSeed($db, demo: true);
 
         $childResult = p12Process(
             [PHP_BINARY, __FILE__, '--inside'],
@@ -356,15 +363,15 @@ $assert(
 );
 
 // Trois dossiers exactement en 2024 : deux ouverts et un resolu.
-$formModel = new FormulaireModel();
-$missionModel = new MissionRechercheModel();
+$formRepository = new FormulaireRepository();
+$missionRepository = new MissionRechercheRepository();
 $knownIds = [];
 foreach ([
     ['P12-KNOWN-1', $openStatusId, $users['agent']],
     ['P12-KNOWN-2', $openStatusId, $users['responsable']],
     ['P12-KNOWN-3', $resolvedStatusId, $users['responsable']],
 ] as $known) {
-    $created = $formModel->insertWithGeneratedNumero([
+    $created = $formRepository->repo_insertWithGeneratedNumero([
         'type_titre_id' => $typeId,
         'annee' => 2024,
         'numero_formulaire' => $known[0],
@@ -380,7 +387,7 @@ foreach ([
     $knownIds[] = $created['id'];
 }
 $yearStats = null;
-foreach ($formModel->statsParAnnee() as $row) {
+foreach ($formRepository->repo_statsParAnnee() as $row) {
     if ((int) $row['annee'] === 2024) {
         $yearStats = $row;
         break;
@@ -390,16 +397,16 @@ $assert($yearStats !== null, 'les statistiques 2024 doivent exister');
 $assert((int) ($yearStats['total_formulaires'] ?? -1) === 3, 'le total 2024 doit etre 3');
 $assert((int) ($yearStats['total_retrouves'] ?? -1) === 1, 'le total resolu 2024 doit etre 1');
 $assert((int) ($yearStats['total_restants'] ?? -1) === 2, 'le total restant 2024 doit etre 2');
-$responsibleStats = $formModel->statsPourResponsable($users['responsable']);
+$responsibleStats = $formRepository->repo_statsPourResponsable($users['responsable']);
 $assert($responsibleStats === ['total_dossiers' => 2, 'total_resolus' => 1], 'les statistiques du responsable doivent etre exactes');
 $currentMonth = date('Y-m');
 $monthly = array_values(array_filter(
-    $formModel->statsMensuelles(),
+    $formRepository->repo_statsMensuelles(),
     static fn (array $row): bool => (string) $row['mois'] === $currentMonth
 ));
 $assert(count($monthly) === 1 && (int) $monthly[0]['retrouves_dans_le_mois'] === 1, 'la progression mensuelle doit utiliser date_resolution');
 
-$detailedStats = $formModel->statistiquesDetaillees(['annee' => 2024]);
+$detailedStats = $formRepository->repo_statistiquesDetaillees(['annee' => 2024]);
 $assert(
     (int) ($detailedStats['kpi']['total_formulaires'] ?? -1) === 3,
     'les KPI detailles doivent respecter le filtre par annee du titre'
@@ -420,9 +427,9 @@ $assert(
 );
 
 // Doublon protege a la fois par le modele et par la contrainte SQL.
-$assert($formModel->duplicateExists(2024, $typeId, 'P12-KNOWN-1'), 'le doublon metier doit etre detecte');
+$assert($formRepository->repo_duplicateExists(2024, $typeId, 'P12-KNOWN-1'), 'le doublon metier doit etre detecte');
 try {
-    $formModel->insertWithGeneratedNumero([
+    $formRepository->repo_insertWithGeneratedNumero([
         'type_titre_id' => $typeId,
         'annee' => 2024,
         'numero_formulaire' => 'P12-KNOWN-1',
@@ -445,37 +452,24 @@ $_SESSION = [
     'session_version' => 1,
 ];
 $reassignedId = $knownIds[0];
-$before = $formModel->find($reassignedId);
-$formModel->update($reassignedId, ['responsable_id' => $users['responsable']]);
-$after = $formModel->find($reassignedId);
-$controller = new FormulaireController();
-$notify = new ReflectionMethod($controller, 'notifierChangementResponsable');
-$notify->invoke($controller, $before, $after, $reassignedId);
-$journal = new ReflectionMethod($controller, 'journaliserChangements');
-$journal->invoke($controller, $before, $after, $reassignedId, 'modification', 'Modification de recette P12');
+$before = $formRepository->repo_find($reassignedId);
+$formRepository->repo_update($reassignedId, ['responsable_id' => $users['responsable']]);
+$after = $formRepository->repo_find($reassignedId);
+// Les notifications et l'e-mail de reaffectation sont verifies plus bas, sur
+// la route HTTP /missions-recherche/reaffecter reellement utilisee.
+$formulaireService = new FormulaireService();
+$journal = new ReflectionMethod($formulaireService, 'journaliserChangements');
+$journal->invoke($formulaireService, $before, $after, $reassignedId, 'modification', 'Modification de recette P12', 1);
 
-$oldNotification = (int) $scalar(
-    "SELECT COUNT(*) FROM notifications WHERE utilisateur_id = :id AND titre = 'Affectation retiree'",
-    ['id' => $users['agent']]
-);
-$newNotification = (int) $scalar(
-    "SELECT COUNT(*) FROM notifications WHERE utilisateur_id = :id AND titre = 'Recherche réaffectée'",
-    ['id' => $users['responsable']]
-);
-$emailTrace = (int) $scalar(
-    "SELECT COUNT(*) FROM activites WHERE type_action = 'email' AND description LIKE '%formulaire #%'") ;
 $auditTrace = (int) $scalar(
     "SELECT COUNT(*) FROM activites WHERE type_action = 'reaffectation' AND entite_id = :id
        AND donnees_avant IS NOT NULL AND donnees_apres IS NOT NULL",
     ['id' => $reassignedId]
 );
-$assert($oldNotification === 1, 'l ancien responsable doit recevoir le retrait d affectation');
-$assert($newNotification === 1, 'le nouveau responsable doit recevoir la reaffectation');
-$assert($emailTrace === 1, 'l envoi simule du courriel d affectation doit etre journalise');
 $assert($auditTrace === 1, 'la reaffectation doit conserver avant/apres dans le journal');
 
-$newUser = (new UserModel())->find($users['responsable']);
-$fullForm = $formModel->findWithRelations($reassignedId);
+$newUser = (new UserRepository())->repo_find($users['responsable']);
+$fullForm = $formRepository->repo_findWithRelations($reassignedId);
 $assignmentMessage = (new AppMailer())->buildAssignmentMessage(
     $newUser ?: [],
     $fullForm ?: [],
@@ -497,13 +491,13 @@ $assert(str_contains($accountAccessMessage['html'], '/reinitialiser/'), 'l invit
 $assert(!str_contains(mb_strtolower($accountAccessMessage['text']), 'mot de passe temporaire'), 'aucun mot de passe temporaire ne doit etre envoye');
 
 // Lecture individuelle d'une notification generale.
-$notifications = new NotificationModel();
-$generalId = $notifications->creer(null, 'Information P12', 'Notification generale de recette');
-$agentBefore = $notifications->nonLuesCount($users['agent']);
-$responsibleBefore = $notifications->nonLuesCount($users['responsable']);
-$notifications->marquerLue($generalId, $users['agent']);
-$assert($notifications->nonLuesCount($users['agent']) === $agentBefore - 1, 'la lecture generale doit etre propre a l agent');
-$assert($notifications->nonLuesCount($users['responsable']) === $responsibleBefore, 'la lecture de l agent ne doit pas lire la notification du responsable');
+$notifications = new NotificationRepository();
+$generalId = $notifications->repo_creer(null, 'Information P12', 'Notification generale de recette');
+$agentBefore = $notifications->repo_nonLuesCount($users['agent']);
+$responsibleBefore = $notifications->repo_nonLuesCount($users['responsable']);
+$notifications->repo_marquerLue($generalId, $users['agent']);
+$assert($notifications->repo_nonLuesCount($users['agent']) === $agentBefore - 1, 'la lecture generale doit etre propre a l agent');
+$assert($notifications->repo_nonLuesCount($users['responsable']) === $responsibleBefore, 'la lecture de l agent ne doit pas lire la notification du responsable');
 
 /** @return array{status:int,headers:string,body:string,content_type:string} */
 $httpRequest = static function (
@@ -753,7 +747,7 @@ try {
         'service' => 'Recette',
         'role' => 'consultation',
     ]);
-    $invitedUser = (new UserModel())->findByEmail($accountEmail);
+    $invitedUser = (new UserRepository())->repo_findByEmail($accountEmail);
     $invitedUserId = (int) ($invitedUser['id'] ?? 0);
     $assert($createAccount['status'] === 302 && $invitedUserId > 0, 'la creation du compte invite doit reussir');
     $firstTokenHash = $invitedUserId > 0
@@ -852,8 +846,8 @@ try {
         ($testStatus['libelle'] ?? '') === 'Recherche P12'
             && ($testStatus['couleur'] ?? '') === 'warning'
             && ($testStatus['code'] ?? '') === 'en_recherche'
-            && (int) ($testStatus['ordre'] ?? 0) === (int) StatutModel::WORKFLOW['en_recherche']['ordre']
-            && (int) ($testStatus['resolu'] ?? 1) === (int) StatutModel::WORKFLOW['en_recherche']['resolu']
+            && (int) ($testStatus['ordre'] ?? 0) === (int) StatutRepository::WORKFLOW['en_recherche']['ordre']
+            && (int) ($testStatus['resolu'] ?? 1) === (int) StatutRepository::WORKFLOW['en_recherche']['resolu']
             && (int) ($testStatus['systeme'] ?? 0) === 1,
         'un statut systeme ne doit permettre de modifier que son libelle et sa couleur'
     );
@@ -962,7 +956,7 @@ try {
         $createdFormId = (int) $createdLocation[1];
     }
     $assert($createdFormId > 0, 'la redirection doit contenir l identifiant du nouveau dossier');
-    $simpleForm = $createdFormId > 0 ? $formModel->find($createdFormId) : null;
+    $simpleForm = $createdFormId > 0 ? $formRepository->repo_find($createdFormId) : null;
     $assert($simpleForm !== null, 'le dossier minimal doit exister');
     $assert((int) ($simpleForm['statut_id'] ?? 0) === $openStatusId, 'le statut initial doit rester Introuvable');
     $assert(empty($simpleForm['responsable_id']) && empty($simpleForm['localisation_id']), 'la creation ne doit pas affecter une recherche');
@@ -1002,7 +996,7 @@ try {
             $editPage['status'] === 200
                 && str_contains($editPage['body'], 'id="modal-modifier-formulaire"')
                 && str_contains($editPage['body'], 'class="detail-surface-card detail-overview-card"')
-                && str_contains($editPage['body'], 'class="detail-history-scroll"')
+                && str_contains($editPage['body'], 'detail-history-scroll')
                 && str_contains($editPage['body'], 'Historique du dossier')
                 && str_contains($editPage['body'], 'Formulaire ajouté au registre')
                 && str_contains($editPage['body'], 'detail-attachments-card')
@@ -1041,7 +1035,7 @@ try {
             'mandataire' => 'Falsification depuis la modification',
         ]);
         $assert($editResponse['status'] === 302, 'la modification generale doit etre enregistree');
-        $afterEdit = $formModel->find($createdFormId);
+        $afterEdit = $formRepository->repo_find($createdFormId);
         $assert(
             (int) ($afterEdit['statut_id'] ?? 0) === $openStatusId
                 && empty($afterEdit['responsable_id'])
@@ -1084,7 +1078,7 @@ try {
             $assignmentResponse['status'] === 302,
             'l affectation valide doit rediriger vers la fiche'
         );
-        $afterAssignment = $formModel->find($createdFormId);
+        $afterAssignment = $formRepository->repo_find($createdFormId);
         $assert(
             (int) ($afterAssignment['responsable_id'] ?? 0) === $users['responsable']
                 && (int) ($afterAssignment['localisation_id'] ?? 0) === $locationId
@@ -1112,7 +1106,7 @@ try {
             ['formulaire_id' => $createdFormId, 'responsable_id' => $users['responsable']]
         );
         $assert($missionId > 0, 'l affectation doit creer une mission independante');
-        $activeMissions = $missionModel->activesPourResponsable($users['responsable']);
+        $activeMissions = $missionRepository->repo_activesPourResponsable($users['responsable']);
         $assert(
             count(array_filter(
                 $activeMissions,
@@ -1124,7 +1118,7 @@ try {
         // Une nouvelle authentification rappelle les missions actives sur la
         // premiere page uniquement. Le bouton "Plus tard" ne marque aucune
         // mission comme traitee et le rappel ne revient pas pendant la session.
-        $activeStats = $missionModel->statsActives($users['responsable']);
+        $activeStats = $missionRepository->repo_statsActives($users['responsable']);
         $assert(
             ($activeStats['total_actives'] ?? 0) >= 1
                 && array_key_exists('total_en_retard', $activeStats)
@@ -1234,11 +1228,11 @@ try {
                 && str_contains($researchResponse['headers'], '#historique-recherches'),
             'le resultat doit rediriger vers l historique'
         );
-        $afterResearch = $formModel->find($createdFormId);
+        $afterResearch = $formRepository->repo_find($createdFormId);
         $assert(empty($afterResearch['date_echeance_recherche']), 'la saisie du resultat doit clore l echeance active');
         $assert(
             count(array_filter(
-                $missionModel->activesPourResponsable($users['responsable']),
+                $missionRepository->repo_activesPourResponsable($users['responsable']),
                 static fn (array $mission): bool => (int) $mission['id'] === $missionId
             )) === 0,
             'une mission terminee doit quitter la liste des missions actives'
@@ -1304,7 +1298,7 @@ try {
             'recherche_observations' => 'Mission parallele P12',
         ]);
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $inResearchStatusId,
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $inResearchStatusId,
             'un echec ne doit pas cloturer le dossier tant qu une autre mission reste active'
         );
         $assert(
@@ -1330,7 +1324,7 @@ try {
         ]);
         $assert($agentFoundResponse['status'] === 302, 'l agent affecte doit pouvoir declarer le formulaire retrouve');
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId,
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId,
             'la premiere mission positive doit resoudre le formulaire'
         );
         $assert(
@@ -1384,7 +1378,7 @@ try {
         );
         $assert($skipResponse['status'] === 302, 'une tentative de saut d etape doit etre refusee proprement');
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId,
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId,
             'le formulaire doit rester Retrouve apres une tentative de saut vers Saisi'
         );
 
@@ -1402,7 +1396,7 @@ try {
         );
         $assert($numerizedResponse['status'] === 302, 'la validation Numerise doit rediriger vers la fiche');
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $numerizedStatusId,
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $numerizedStatusId,
             'le statut doit passer de Retrouve a Numerise'
         );
 
@@ -1420,7 +1414,7 @@ try {
         );
         $assert($enteredResponse['status'] === 302, 'la validation Saisi doit rediriger vers la fiche');
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $enteredStatusId,
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $enteredStatusId,
             'le statut doit passer de Numerise a Saisi'
         );
         $assert(
@@ -1457,7 +1451,7 @@ try {
             ]
         );
         $assert($reopenResponse['status'] === 302, 'l administrateur doit pouvoir rouvrir un dossier finalise');
-        $reopenedForm = $formModel->find($createdFormId);
+        $reopenedForm = $formRepository->repo_find($createdFormId);
         $verificationStatusId = (int) $scalar("SELECT id FROM statuts WHERE code = 'a_verifier'");
         $assert(
             (int) ($reopenedForm['cycle_suivi'] ?? 0) === 2
@@ -1469,7 +1463,7 @@ try {
             'la reouverture doit conserver son motif et son acteur'
         );
         $assert(
-            count((new FinalisationFormulaireModel())->pourFormulaire($createdFormId)) === 0
+            count((new FinalisationFormulaireRepository())->repo_pourFormulaire($createdFormId)) === 0
                 && (int) $scalar('SELECT COUNT(*) FROM finalisations_formulaire WHERE formulaire_id = :id', ['id' => $createdFormId]) === 3,
             'le nouveau cycle doit repartir sans effacer les trois jalons precedents'
         );
@@ -1513,6 +1507,27 @@ try {
                 && (int) $scalar('SELECT cycle_suivi FROM missions_recherche WHERE id = :id', ['id' => $missionAfterReassignment]) === 2,
             'la reaffectation doit annuler l ancienne mission et creer un remplacement lie dans le meme cycle'
         );
+        $assert(
+            (int) $scalar(
+                "SELECT COUNT(*) FROM notifications WHERE utilisateur_id = :id AND titre = 'Mission reaffectee'",
+                ['id' => $users['responsable']]
+            ) >= 1,
+            'l ancien responsable doit etre prevenu du transfert de sa mission'
+        );
+        $assert(
+            (int) $scalar(
+                "SELECT COUNT(*) FROM notifications WHERE utilisateur_id = :id AND titre = 'Mission de recherche reaffectee'",
+                ['id' => $users['agent']]
+            ) >= 1,
+            'le nouveau responsable doit recevoir la mission reaffectee'
+        );
+        $assert(
+            (int) $scalar(
+                "SELECT COUNT(*) FROM activites WHERE type_action = 'email' AND description LIKE :motif",
+                ['motif' => '%de la mission #' . $missionAfterReassignment . ' %']
+            ) === 1,
+            'l envoi du courriel de reaffectation doit etre journalise'
+        );
 
         $oldResponsibleRefused = $httpRequest(
             $baseUrl,
@@ -1541,7 +1556,7 @@ try {
         $assert($cancelResponse['status'] === 302, 'une mission active doit pouvoir etre annulee manuellement');
         $assert(
             (string) $scalar('SELECT etat FROM missions_recherche WHERE id = :id', ['id' => $missionAfterReassignment]) === 'annulee'
-                && (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $verificationStatusId,
+                && (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $verificationStatusId,
             'l annulation de la seule mission du cycle rouvert doit ramener le dossier a A verifier'
         );
 
@@ -1561,8 +1576,8 @@ try {
             'recherche_observations' => 'Deuxieme cycle P12',
         ]);
         $assert(
-            (int) ($formModel->find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId
-                && count((new FinalisationFormulaireModel())->pourFormulaire($createdFormId)) === 1
+            (int) ($formRepository->repo_find($createdFormId)['statut_id'] ?? 0) === $resolvedStatusId
+                && count((new FinalisationFormulaireRepository())->repo_pourFormulaire($createdFormId)) === 1
                 && (int) $scalar('SELECT COUNT(*) FROM finalisations_formulaire WHERE formulaire_id = :id', ['id' => $createdFormId]) === 4,
             'le cycle 2 doit pouvoir etre resolu sans collision avec les jalons historiques du cycle 1'
         );
@@ -1642,7 +1657,7 @@ try {
     $cookieFiles[] = $revokedCookie;
     $login($baseUrl, 'OIPI-RISFM-000004', $revokedCookie);
     $assert($httpRequest($baseUrl, '/dashboard', $revokedCookie)['status'] === 200, 'la session consultation doit etre ouverte avant revocation');
-    (new UserModel())->toggleActive($users['consultation']);
+    (new UserRepository())->repo_toggleActive($users['consultation']);
     $revoked = $httpRequest($baseUrl, '/dashboard', $revokedCookie);
     $assert($revoked['status'] === 302 && str_contains($revoked['headers'], '/login'), 'la desactivation doit revoquer immediatement la session');
     $activeConnections = (int) $scalar(

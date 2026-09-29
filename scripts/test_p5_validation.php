@@ -1,17 +1,14 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Formulaire\FormulaireRepository;
+use App\Repositories\Utilisateur\UserRepository;
+use App\Services\Formulaire\FormulaireMetierValidator;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 $db = Database::getConnection();
 $type = $db->query('SELECT * FROM types_titres WHERE actif = 1 ORDER BY id LIMIT 1')->fetch();
@@ -162,11 +159,11 @@ $existing = $db->query(
     'SELECT id, annee, type_titre_id, numero_formulaire FROM formulaires_manquants ORDER BY id LIMIT 1'
 )->fetch();
 if ($existing) {
-    $model = new FormulaireModel();
+    $model = new FormulaireRepository();
     $assertSame(
         'doublon detecte',
         true,
-        $model->duplicateExists(
+        $model->repo_duplicateExists(
             (int) $existing['annee'],
             (int) $existing['type_titre_id'],
             (string) $existing['numero_formulaire']
@@ -175,7 +172,7 @@ if ($existing) {
     $assertSame(
         'ligne courante exclue en modification',
         false,
-        $model->duplicateExists(
+        $model->repo_duplicateExists(
             (int) $existing['annee'],
             (int) $existing['type_titre_id'],
             (string) $existing['numero_formulaire'],
@@ -184,7 +181,7 @@ if ($existing) {
     );
 }
 
-foreach ((new UserModel())->activeUsers() as $user) {
+foreach ((new UserRepository())->repo_activeUsers() as $user) {
     if (!in_array((string) $user['role'], ['administrateur', 'responsable', 'agent'], true)) {
         $failures[] = 'liste des responsables , role interdit retourne : ' . $user['role'];
     }

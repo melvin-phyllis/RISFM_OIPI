@@ -1,17 +1,13 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Core\SqlStatementParser;
+use App\Repositories\Formulaire\FormulaireRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 require_once BASE_PATH . '/scripts/test_support.php';
 
 $volume = max(5000, min(100000, (int) env('RISFM_PERF_VOLUME', 20000)));
@@ -69,7 +65,7 @@ if ((string) env('RISFM_PERF_CHILD', '0') !== '1') {
                 );
             }
         }
-        risfmLoadTestSql($db, BASE_PATH . '/demo_data.sql', 'demo_data.sql');
+        risfmSeed($db, demo: true);
         unset($db);
 
         $environment = getenv();
@@ -222,7 +218,7 @@ $analyze = $db->query('ANALYZE TABLE formulaires_manquants, missions_recherche')
 $analyze->fetchAll();
 $analyze->closeCursor();
 
-$model = new FormulaireModel();
+$model = new FormulaireRepository();
 $results = [];
 $measure = static function (string $name, callable $callback, float $limitMs) use (&$results): mixed {
     $start = hrtime(true);
@@ -232,11 +228,11 @@ $measure = static function (string $name, callable $callback, float $limitMs) us
     return $value;
 };
 
-$rows = $measure('Registre, premiere page (25)', fn () => $model->search([], null, 'f.mis_a_jour_le', 'DESC', 25, 0), 1000);
-$count = $measure('Comptage complet', fn () => $model->searchCount([]), 500);
+$rows = $measure('Registre, premiere page (25)', fn () => $model->repo_search([], null, 'f.mis_a_jour_le', 'DESC', 25, 0), 1000);
+$count = $measure('Comptage complet', fn () => $model->repo_searchCount([]), 500);
 $filtered = $measure(
     'Filtre annee + statut + responsable',
-    fn () => $model->search([
+    fn () => $model->repo_search([
         'annee' => 2024,
         'statut_id' => (int) $statuses['en_recherche'],
         'responsable_id' => $userIds[1 % count($userIds)],
@@ -245,26 +241,26 @@ $filtered = $measure(
 );
 $filteredCount = $measure(
     'Comptage filtre responsable',
-    fn () => $model->searchCount(['responsable_id' => $userIds[1 % count($userIds)]]),
+    fn () => $model->repo_searchCount(['responsable_id' => $userIds[1 % count($userIds)]]),
     500
 );
 $missions = $measure(
     'Dashboard agent, missions actives',
-    fn () => $model->missionsActivesPourResponsable($userIds[1 % count($userIds)], 10),
+    fn () => $model->repo_missionsActivesPourResponsable($userIds[1 % count($userIds)], 10),
     500
 );
 $stats = $measure('Statistiques (5 series)', fn () => [
-    $model->statsParAnnee(),
-    $model->statsParType(),
-    $model->statsParStatut(),
-    $model->statsParResponsable(),
-    $model->statsMensuelles(),
+    $model->repo_statsParAnnee(),
+    $model->repo_statsParType(),
+    $model->repo_statsParStatut(),
+    $model->repo_statsParResponsable(),
+    $model->repo_statsMensuelles(),
 ], 1500);
 
 $exportCount = 0;
 $memoryBefore = memory_get_usage(true);
 $measure('Export complet par lots', function () use ($model, &$exportCount): void {
-    foreach ($model->iterateForExport([], null, 500) as $row) {
+    foreach ($model->repo_iterateForExport([], null, 500) as $row) {
         $exportCount++;
     }
 }, 25000);

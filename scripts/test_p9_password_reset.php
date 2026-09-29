@@ -1,17 +1,14 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Repositories\Utilisateur\TokenResetRepository;
+use App\Repositories\Utilisateur\UserRepository;
+use App\Services\Auth\PasswordResetService;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 $db = Database::getConnection();
 $failures = [];
@@ -55,8 +52,8 @@ try {
     );
     $failedAttempt->execute(['identifiant' => $identifiant]);
 
-    $tokens = new TokenResetModel();
-    $firstToken = $tokens->creer($userId, 60);
+    $tokens = new TokenResetRepository();
+    $firstToken = $tokens->repo_creer($userId, 60);
     $assert(strlen($firstToken) === 64, 'le jeton public doit contenir 64 caracteres hexadecimaux');
 
     $firstRow = $db->prepare(
@@ -71,21 +68,21 @@ try {
         'la base doit contenir uniquement le SHA-256 du jeton'
     );
     $assert((string) ($stored['token_hash'] ?? '') !== $firstToken, 'le jeton brut ne doit pas etre stocke');
-    $assert($tokens->valide('format-invalide') === null, 'un jeton de format invalide doit etre refuse');
+    $assert($tokens->repo_valide('format-invalide') === null, 'un jeton de format invalide doit etre refuse');
 
-    $secondToken = $tokens->creer($userId, 60);
-    $assert($tokens->valide($firstToken) === null, 'une nouvelle demande doit invalider le premier lien');
-    $assert($tokens->valide($secondToken) !== null, 'le lien le plus recent doit rester valide');
+    $secondToken = $tokens->repo_creer($userId, 60);
+    $assert($tokens->repo_valide($firstToken) === null, 'une nouvelle demande doit invalider le premier lien');
+    $assert($tokens->repo_valide($secondToken) !== null, 'le lien le plus recent doit rester valide');
 
     $newPassword = 'Nouveau@2026!P9';
-    $resetUserId = (new PasswordResetService())->reset($secondToken, $newPassword);
+    $resetUserId = (new PasswordResetService())->srv_reset($secondToken, $newPassword);
     $assert($resetUserId === $userId, 'le lien valide doit reinitialiser le bon compte');
     $assert(
-        (new PasswordResetService())->reset($secondToken, 'Autre@2026!P9') === null,
+        (new PasswordResetService())->srv_reset($secondToken, 'Autre@2026!P9') === null,
         'un lien consomme ne doit jamais etre reutilisable'
     );
 
-    $user = (new UserModel())->find($userId);
+    $user = (new UserRepository())->repo_find($userId);
     $assert($user !== null && password_verify($newPassword, (string) $user['mot_de_passe']), 'le nouveau mot de passe doit etre enregistre');
     $assert((int) ($user['session_version'] ?? 0) === 2, 'la version de session doit etre incrementee une seule fois');
 
@@ -114,7 +111,7 @@ try {
          VALUES (:id, :hash, NOW() - INTERVAL 1 MINUTE, 0, NOW() - INTERVAL 2 MINUTE)"
     );
     $expired->execute(['id' => $userId, 'hash' => $expiredHash]);
-    $assert($tokens->purgerExpires() >= 1, 'la purge doit supprimer les jetons expires');
+    $assert($tokens->repo_purgerExpires() >= 1, 'la purge doit supprimer les jetons expires');
 
     $expiredCheck = $db->prepare('SELECT COUNT(*) FROM tokens_reinitialisation WHERE token_hash = :hash');
     $expiredCheck->execute(['hash' => $expiredHash]);
