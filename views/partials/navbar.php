@@ -16,11 +16,10 @@ foreach (array_slice($__nameParts, 0, 2) as $__namePart) {
 $__userInitials = $__userInitials !== '' ? $__userInitials : 'U';
 $__roleLabel = Permission::label($__role);
 ?>
-<nav class="main-header navbar navbar-expand-xl navbar-white navbar-light risfm-navbar">
+<nav class="main-header navbar navbar-expand-lg navbar-white navbar-light risfm-navbar">
     <div class="container-fluid risfm-navbar-inner">
-        <a href="<?= url('dashboard') ?>" class="navbar-brand risfm-navbar-brand">
-            <img src="<?= appLogoUrl(true) ?>" alt="Logo RISFM" class="risfm-navbar-logo">
-        </a>
+        <?php /* Menu replie (moins de 992 px) : le nom de l'application reste visible a cote du bouton. */ ?>
+        <a href="<?= url('dashboard') ?>" class="risfm-navbar-mobile-brand d-lg-none"><?= e(appName()) ?></a>
 
         <button class="navbar-toggler risfm-navbar-toggler" type="button" data-toggle="collapse" data-target="#risfmNavbarMenu" aria-controls="risfmNavbarMenu" aria-expanded="false" aria-label="Afficher ou masquer la navigation">
             <span></span><span></span><span></span>
