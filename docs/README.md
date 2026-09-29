@@ -32,7 +32,7 @@ ci-dessous font foi jusqu'a validation du cahier des charges final.
 - PHP 8.1+ et MySQL 8/MariaDB 10.6+ ;
 - 23 tables, 5 vues et 1 procedure KPI ;
 - 21 migrations ordonnees dans `config/migrations.php` ;
-- 80 routes centralisees dans `config/routes.php` ;
+- 81 routes reparties par module dans `routes/` ;
 - 4 roles : administrateur, responsable, agent et consultation ;
 - protection des connexions par identifiant et IP avec retention configurable ;
 - recette complete reussie sur base isolee le 4 aout 2026.
@@ -43,7 +43,8 @@ ci-dessous font foi jusqu'a validation du cahier des charges final.
 composer install
 php scripts/migrate.php
 php scripts/migrate.php --status
-php scripts/create_admin.php
+php scripts/seed.php            # --demo pour un poste de test
+php scripts/create_admin.php     # première installation uniquement
 php scripts/recette.php
 ```
 

@@ -134,14 +134,16 @@ Puis executer depuis la racine du projet :
 cd /home/COMPTE_CPANEL/risfm
 php scripts/migrate.php
 php scripts/migrate.php --status
+php scripts/seed.php
 php scripts/create_admin.php
 php scripts/check_production.php
 ```
 
-`create_admin.php` demande les informations et le mot de passe de maniere
-interactive. Il n'existe aucun compte administrateur universel. Si `php` ne
-correspond pas a la version choisie dans MultiPHP Manager, utiliser le chemin
-fourni par l'hebergeur, par exemple `/usr/local/bin/ea-php83`.
+`seed.php` ecrit les donnees de reference. `create_admin.php` demande
+interactivement l’adresse e-mail et le mot de passe du premier administrateur :
+aucun secret administrateur par defaut n’est livre ou conserve dans Git. Si
+`php` ne correspond pas a la version choisie dans MultiPHP Manager, utiliser
+le chemin fourni par l'hebergeur, par exemple `/usr/local/bin/ea-php83`.
 
 Sans Terminal ni SSH, le deploiement initial peut etre prepare localement puis
 importe avec phpMyAdmin, mais l'application ne pourra pas etre maintenue de
@@ -237,20 +239,24 @@ de la section 8. Verifier en priorite :
    ```
 5. Ouvrir une invite de commande dans le dossier `RISFM/` et executer `composer install`.
 6. Executer `php scripts/migrate.php` afin d'enregistrer et verifier la version du schema.
-7. Creer le premier administrateur avec `php scripts/create_admin.php`. Le mot
-   de passe est saisi interactivement et n'apparait pas dans l'historique du
-   terminal.
-8. Acceder a `http://localhost/RISFM/public/login`, puis se connecter avec
-   l'identifiant affiche par la commande.
+7. Executer `php scripts/seed.php` pour ecrire les donnees de reference,
+   puis `php scripts/create_admin.php` pour creer interactivement le premier
+   administrateur. Ajouter `--demo` au seeder seulement sur un poste de test.
+8. Acceder a `http://localhost/RISFM/public/login` et se connecter avec
+   l’adresse e-mail et le mot de passe choisis a l’etape precedente.
 
 ### Comptes initiaux d'une installation neuve
 
-Une installation neuve ne contient aucun compte ni mot de passe universel.
-`scripts/create_admin.php` cree le premier administrateur et genere son
-identifiant `OIPI-RISFM-NNNNNN` a partir de son identifiant interne.
+`schema.sql` ne cree que la structure. `php scripts/seed.php` ecrit ensuite
+les donnees de reference sans créer de compte. Le premier administrateur est
+cree avec `php scripts/create_admin.php` ; son identifiant
+`OIPI-RISFM-NNNNNN` est derive de son identifiant interne. Aucun mot de passe
+administrateur n'est enregistre dans le code. Le seeder n'ajoute que ce qui
+manque et ne modifie jamais un compte ou un parametre existant.
 
-`demo_data.sql` est reserve aux postes de demonstration et aux recettes. Il ne
-doit jamais etre importe dans une base de production.
+`php scripts/seed.php --demo` ajoute des comptes et formulaires fictifs. Il est
+reserve aux postes de demonstration et refuse de s'executer quand
+`APP_ENV=production`.
 
 ### Mise a niveau d'une installation existante
 
@@ -314,7 +320,7 @@ cp .env.example .env
 # Editer .env avec les identifiants ci-dessus
 composer install --no-dev --optimize-autoloader
 php scripts/migrate.php
-php scripts/create_admin.php
+php scripts/seed.php
 # Le code reste possede par l'administrateur systeme et n'est pas inscriptible
 # par le serveur Web.
 sudo chown -R root:www-data /var/www/risfm
@@ -421,8 +427,8 @@ server {
 ## 8. Verification post-installation (checklist)
 
 - [ ] La page `/login` s'affiche avec le logo et le style OIPI.
-- [ ] Le premier administrateur a ete cree avec `php scripts/create_admin.php`.
-- [ ] La connexion avec l'identifiant genere et le mot de passe choisi fonctionne.
+- [ ] Les donnees de reference ont ete creees avec `php scripts/seed.php`.
+- [ ] Le premier administrateur a ete cree avec `php scripts/create_admin.php` et sa connexion fonctionne.
 - [ ] Le tableau de bord administrateur affiche les cartes KPI (a 0 tant qu'aucun formulaire n'est saisi).
 - [ ] La creation d'un formulaire manquant genere bien un numero automatique (`FM-AAAA-NNNNNN`).
 - [ ] Les exports Excel/PDF/Word/CSV se telechargent sans erreur (necessite `composer install` reussi).
@@ -454,11 +460,11 @@ Pour toute anomalie, consulter en priorite :
 
 Si la page de connexion elle-meme s'affiche mais que toute action (connexion, navigation) renvoie la page 404 stylee de l'application (et non l'erreur 404 generique d'Apache), verifiez dans l'ordre :
 
-1. **Mise a jour du 18/07/2026** : les versions anterieures du routeur ne géraient pas le cas ou l'application est installee dans un sous-dossier de `htdocs` (ex. `http://localhost/RISFM/public/...`). Ce correctif est integre depuis `core/Router.php` v1.0.1 (detection automatique du sous-dossier via `SCRIPT_NAME`) , verifiez que vous utilisez bien la derniere archive fournie.
+1. **Mise a jour du 18/07/2026** : les versions anterieures du routeur ne géraient pas le cas ou l'application est installee dans un sous-dossier de `htdocs` (ex. `http://localhost/RISFM/public/...`). Ce correctif est integre depuis `app/Core/Router.php` v1.0.1 (detection automatique du sous-dossier via `SCRIPT_NAME`) , verifiez que vous utilisez bien la derniere archive fournie.
 2. **`mod_rewrite` actif ?** Sur XAMPP, ouvrez `httpd.conf` et verifiez que la ligne `LoadModule rewrite_module modules/mod_rewrite.so` n'est pas commentee, puis redemarrez Apache.
 3. **`AllowOverride All`** requis sur le dossier `public/` pour que le `.htaccess` soit pris en compte (sinon toutes les routes sauf `/` renverront une 404 Apache brute, pas la page 404 de l'application).
 4. **URL correcte** : sans VirtualHost dedie, l'URL doit inclure `/public/`, par exemple `http://localhost/RISFM/public/login` (et non `http://localhost/RISFM/login`).
 5. **`.env` absent ou `APP_URL` mal renseigne** : si le fichier `.env` n'existe pas (seul `.env.example` est fourni), l'application detecte automatiquement le sous-dossier RISFM, c'est le comportement attendu pour un usage local sans configuration. Si vous avez neanmoins defini `APP_URL` dans `.env`, assurez-vous qu'il correspond exactement a l'URL reelle (y compris `/public` si applicable), sinon les liens generes pointeront au mauvais endroit et provoqueront des 404 en cascade.
-6. **Cache navigateur** : apres toute modification de `.htaccess` ou de `core/Router.php`, videz le cache ou testez en navigation privee.
+6. **Cache navigateur** : apres toute modification de `.htaccess` ou de `app/Core/Router.php`, videz le cache ou testez en navigation privee.
 
 Si le probleme persiste apres ces verifications, consultez `storage/logs/php-error.log` : une erreur PHP fatale silencieuse (extension manquante, `composer install` non execute) peut aussi se traduire par une page blanche ou une 500 confondue avec une 404 par l'utilisateur.

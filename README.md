@@ -94,15 +94,22 @@ php scripts/migrate.php --status
 > une base neuve. Pour mettre à jour une installation existante, sauvegarder la
 > base puis exécuter seulement `php scripts/migrate.php`.
 
-### 4. Créer le premier administrateur
+### 4. Remplir les données et créer le premier administrateur
 
 ```bash
+php scripts/seed.php
 php scripts/create_admin.php
 ```
 
-La commande demande le nom, l’e-mail, le service et le mot de passe, puis affiche
-un identifiant du type `OIPI-RISFM-000001`. Il n’existe aucun identifiant ni mot
-de passe administrateur universel dans le projet.
+`seed.php` écrit les rôles, statuts, types de titres, localisations et
+paramètres. La commande peut être relancée sans risque : elle n’ajoute que ce
+qui manque. `create_admin.php` demande ensuite le nom, l’adresse e-mail et le
+mot de passe du premier administrateur directement dans le terminal. Aucun
+identifiant ni mot de passe administrateur par défaut n’est conservé dans le
+code ou dans Git.
+
+Sur un poste de test uniquement, `php scripts/seed.php --demo` ajoute aussi
+des comptes et formulaires fictifs. Il faut d’abord avoir créé l’administrateur.
 
 ### 5. Lancer l’application
 
@@ -110,9 +117,9 @@ de passe administrateur universel dans le projet.
 php -S localhost:8000 -t public public/router.php
 ```
 
-Ouvrir [http://localhost:8000/login](http://localhost:8000/login), puis se
-connecter avec l’identifiant généré ou l’adresse e-mail du premier
-administrateur. Arrêter le serveur avec `Ctrl+C`.
+Ouvrir [http://localhost:8000/login](http://localhost:8000/login), puis utiliser
+l’adresse e-mail et le mot de passe choisis avec `create_admin.php`. Arrêter
+le serveur avec `Ctrl+C`.
 
 ## Premier parcours dans l’application
 
@@ -165,7 +172,9 @@ dépôt Git.
 | Lancer sur le port 8001 | `php -S localhost:8001 -t public public/router.php` |
 | Appliquer les mises à jour SQL | `php scripts/migrate.php` |
 | Voir l’état des migrations | `php scripts/migrate.php --status` |
+| Remplir les données de référence | `php scripts/seed.php` |
 | Créer le premier administrateur | `php scripts/create_admin.php` |
+| Ajouter les données de démonstration (poste de test) | `php scripts/seed.php --demo` |
 | Vérifier la configuration de production | `php scripts/check_production.php` |
 | Vérifier les rappels | `php scripts/relances.php --status` |
 | Installer la tâche quotidienne sur Linux/VPS | `php scripts/reminder_scheduler.php install` |
@@ -184,7 +193,7 @@ et ne doit pas être lancée au hasard sur un serveur en exploitation.
 | `localhost n’autorise pas la connexion` | Le serveur PHP n’est pas lancé, ou le port de l’URL n’est pas le bon. |
 | Redirection vers le port 8000 depuis le port 8001 | Corriger `APP_URL` dans `.env`, puis relancer le serveur. |
 | `Access denied for user risfm_user` | Vérifier `DB_USER`, `DB_PASS`, l’hôte `localhost` et les droits MySQL accordés à la base. |
-| `Base table or view not found` | Importer `schema.sql` sur une base neuve, puis lancer `php scripts/migrate.php`. |
+| `Base table or view not found` | Importer `schema.sql` sur une base neuve, puis lancer `php scripts/migrate.php` et `php scripts/seed.php`. |
 | Le code OTP ou le lien de réinitialisation n’arrive pas | Vérifier les variables `MAIL_*`, le dossier indésirable et `storage/logs/php-error.log`. |
 | La restauration est indisponible | Vérifier les exécutables `mysql`, `mysqldump`, la fonction PHP `proc_open()` et le compte MySQL de maintenance. |
 | Les anciens styles restent affichés | Effectuer un rechargement forcé avec `Ctrl+F5`. |
@@ -218,8 +227,8 @@ Résumé du déploiement :
 4. téléverser l’application hors de `public_html`, installer `vendor/` et créer
    un fichier `.env` de production ;
 5. faire pointer le domaine vers `public/` et activer HTTPS avec AutoSSL ;
-6. depuis **Terminal** ou SSH, exécuter les migrations, créer le premier
-   administrateur et contrôler la configuration ;
+6. depuis **Terminal** ou SSH, exécuter les migrations, `php scripts/seed.php`,
+   puis `php scripts/create_admin.php` et contrôler la configuration ;
 7. créer les tâches quotidiennes dans **Cron Jobs** pour les rappels et la
    maintenance.
 
@@ -265,7 +274,7 @@ L'application repose sur une **architecture MVC légère et modulaire en PHP 8.1
                                        |
                                        v
                     +---------------------------------------+
-                    |          config/routes.php            |
+                    |   routes/*.php (par module) + Router  |
                     |        (Router & Controller Dispatch) |
                     +---------------------------------------+
                                        |
@@ -273,15 +282,15 @@ L'application repose sur une **architecture MVC légère et modulaire en PHP 8.1
                    |                                       |
                    v                                       v
       +------------------------+              +------------------------+
-      |      controllers/      |              |         core/          |
-      | (Orchestration Métier) |              |  (Services Transverses)|
+      | app/Http/Controllers/  |              |      app/Services/     |
+      | (Requête et réponse)   |              |    (Règles métier)     |
       +------------------------+              +------------------------+
                    |                                       |
                    +-------------------+-------------------+
                                        |
                                        v
                       +----------------------------------+
-                      |             models/              |
+                      |        app/Repositories/         |
                       |   (Accès PDO MySQL / Requêtes)   |
                       +----------------------------------+
                                        |
@@ -352,23 +361,18 @@ RISFM_OIPI_v2/
 │   ├── migrations.php   # Registre des migrations SQL applicatives
 │   ├── roles.php        # Matrice des droits et permissions
 │   └── routes.php       # Table de routage HTTP (80+ routes)
-├── controllers/         # 19 Contrôleurs d'orchestration (Formulaire, Auth, Mission, Export...)
-├── core/                # 29 Composants & Services métier transverses
-│   ├── Auth.php         # Gestion des sessions et authentification
-│   ├── AppMailer.php    # Service d'envoi d'e-mails SMTP
-│   ├── DatabaseBackup.php # Module de sauvegarde et restauration MySQL
-│   ├── FormulaireImportService.php # Analyse et import atomique CSV/XLSX
-│   ├── LoginRateLimiter.php # Protection contre les attaques force brute IP/Identifiant
-│   ├── MigrationRunner.php # Moteur de migrations versionnées
-│   ├── MissionReminderService.php # Moteur des relances automatiques
-│   └── Security.php     # En-têtes HTTP, sanitisation et CSRF
+├── app/                 # Code PHP (namespaces PSR-4 App\...), organisé par couche puis par module
+│   ├── Core/            # Infrastructure : routeur, base, sécurité, session, e-mails, sauvegardes
+│   ├── Http/Controllers/# 18 contrôleurs par module (Auth, Formulaire, Mission, Administration...)
+│   ├── Services/        # Règles métier par module (missions, finalisation, archivage, import...)
+│   └── Repositories/    # 16 repositories d'accès aux données (SQL), méthodes repo_*
 ├── docs/                # Documentation technique et fonctionnelle détaillée (10 fichiers .md)
 ├── exports/             # Répertoire temporaire des fichiers d'export générés
 ├── migrations/          # 23 Fichiers SQL de migration de schéma
-├── models/              # 15 Modèles d'accès aux données (FormulaireModel, UserModel, etc.)
 ├── public/              # Racine Web publique (index.php, router.php, assets CSS/JS)
-├── schema.sql           # Schéma initial de la base de données (sans données de test)
-├── demo_data.sql        # Données de démonstration (environnement de dev uniquement)
+├── routes/              # Routes HTTP par module (auth, formulaires, missions, utilisateurs...)
+├── schema.sql           # Structure initiale de la base de données (sans aucune donnée)
+├── database/seeders/    # Données initiales : référence, premier admin et démonstration (--demo)
 ├── scripts/             # 30 Scripts CLI de maintenance, relances, migrations et tests
 ├── storage/             # Stockage privé hors Web (uploads, backups, imports, logs)
 └── views/               # Vues PHP/HTML structurées par domaine (formulaires, users, etc.)
@@ -437,12 +441,12 @@ php scripts/migrate.php
 php scripts/migrate.php --status
 ```
 
-### Step 4 : Créer le premier administrateur
-Exécuter le script interactif :
+### Step 4 : Remplir les données et créer le premier administrateur
 ```bash
+php scripts/seed.php
 php scripts/create_admin.php
 ```
-*L'identifiant administrateur est généré automatiquement (`OIPI-RISFM-000001`).*
+*Le second script demande interactivement l’adresse e-mail et le mot de passe du premier administrateur. Aucun secret administrateur par défaut n’est livré.*
 
 ### Step 5 : Configurer le moteur de relances (Cron)
 ```bash

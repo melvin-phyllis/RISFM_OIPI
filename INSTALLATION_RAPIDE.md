@@ -60,26 +60,28 @@ EOF
 chmod 600 .env
 ```
 
-### 5. Remplir la base
+### 5. Créer les tables
 
 ```bash
 mysql -u risfm_user -p'Risfm_2026' oipi_risfm < schema.sql
 php scripts/migrate.php
 ```
 
-### 6. Créer le compte administrateur
+### 6. Remplir les données et créer le compte administrateur
 
 ```bash
+php scripts/seed.php
 php scripts/create_admin.php
 ```
 
-Le script demande un nom, un e-mail et un mot de passe, puis affiche un
-identifiant du type `OIPI-RISFM-000001`. Le noter.
+La première commande crée les rôles, statuts, types de titres, localisations
+et paramètres. La seconde demande interactivement le nom, l’adresse e-mail et
+le mot de passe du premier administrateur. Le mot de passe doit contenir au
+moins 10 caractères, avec une majuscule, une minuscule, un chiffre et un
+caractère spécial. Aucun mot de passe administrateur par défaut n’est livré.
 
-Appuyer sur Entrée garde la valeur proposée entre crochets. Le mot de passe ne
-s'affiche pas pendant la saisie. Il doit contenir **au moins 10 caractères**,
-avec une majuscule, une minuscule, un chiffre et un caractère spécial
-(exemple : `AdminOipi2026!`).
+Pour avoir aussi des comptes et formulaires d'exemple sur un poste de test,
+créer d’abord l’administrateur puis lancer `php scripts/seed.php --demo`.
 
 ## Lancer l'application
 
@@ -87,8 +89,8 @@ avec une majuscule, une minuscule, un chiffre et un caractère spécial
 php -S localhost:8000 -t public public/router.php
 ```
 
-Ouvrir **http://localhost:8000/login** dans le navigateur et se connecter avec
-l'e-mail (ou l'identifiant) et le mot de passe de l'administrateur.
+Ouvrir **http://localhost:8000/login** dans le navigateur et utiliser l’adresse
+e-mail et le mot de passe choisis avec `create_admin.php`.
 
 Pour arrêter l'application : `Ctrl+C` dans le terminal.
 
@@ -101,7 +103,8 @@ Pour arrêter l'application : `Ctrl+C` dans le terminal.
 |---|---|
 | `Access denied for user risfm_user` | Le mot de passe dans `.env` ne correspond pas à celui de l'étape 3. |
 | `Base table or view not found` | Refaire l'étape 5. |
-| `ECHEC : Le mot de passe doit contenir…` | Relancer l'étape 6 avec un mot de passe plus fort. |
+| `Table 'roles' doesn't exist` pendant l'étape 6 | Faire d'abord l'étape 5 (tables et migrations). |
+| Connexion administrateur refusée | Utiliser l’adresse choisie avec `create_admin.php` ou réinitialiser le mot de passe depuis l’application. |
 | La page ne s'ouvre pas | Vérifier que la commande de lancement tourne toujours dans le terminal. |
 
 Pour aller plus loin (déploiement sur cPanel, e-mails, sauvegardes), voir

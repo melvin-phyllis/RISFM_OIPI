@@ -18,3 +18,4 @@
 !/public/uploads/logos/.htaccess
 .DS_Store
 Thumbs.db
+/tt.md
