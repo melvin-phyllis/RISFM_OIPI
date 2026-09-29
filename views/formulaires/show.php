@@ -1,4 +1,9 @@
 <?php
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
+<?php
 $__priority = (string) ($formulaire['priorite'] ?? 'Normale');
 $__isUrgent = $__priority === 'Urgente';
 $__activeMissions = array_values(array_filter(

@@ -1,3 +1,6 @@
+<?php
+use App\Core\Csrf;
+?>
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <div class="text-muted small">

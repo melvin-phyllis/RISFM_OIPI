@@ -1,3 +1,6 @@
+<?php
+use App\Core\Csrf;
+?>
 <div class="card">
     <div class="card-body">
         <form action="<?= $user ? url('utilisateurs/modifier/' . $user['id']) : url('utilisateurs/ajouter') ?>" method="post">

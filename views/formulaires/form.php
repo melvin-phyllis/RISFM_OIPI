@@ -1,3 +1,8 @@
+<?php
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
 <?php $__isCreation = empty($formulaire); ?>
 <div class="card">
     <div class="card-body">

@@ -1,6 +1,10 @@
 <?php
-$__notifModel = new NotificationModel();
-$__notifCount = Auth::check() ? $__notifModel->nonLuesCount((int) Auth::id()) : 0;
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
+<?php
+$__notifCount = (int) ($__notifCount ?? 0);
 $__role = (string) Auth::role();
 $__active = $__active ?? '';
 $__userName = trim((string) Auth::nom());

@@ -1,4 +1,7 @@
 <?php
+use App\Core\Auth;
+?>
+<?php
 $__trackedTotal = (int) $mesFormulairesTotal;
 $__resolvedTotal = (int) $mesFormulairesResolus;
 $__resolutionRate = pct($__resolvedTotal, $__trackedTotal);

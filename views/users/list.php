@@ -1,4 +1,8 @@
 <?php
+use App\Core\Auth;
+use App\Core\Csrf;
+?>
+<?php
 $activeAdminCount = count(array_filter(
     $users,
     static fn (array $item): bool => $item['role'] === 'administrateur' && (int) $item['actif'] === 1

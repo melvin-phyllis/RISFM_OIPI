@@ -1,4 +1,8 @@
 <?php
+use App\Core\Csrf;
+use App\Services\Formulaire\FormulaireImportService;
+?>
+<?php
 $__analysis = is_array($analysis ?? null) ? $analysis : null;
 $__state = is_array($importState ?? null) ? $importState : null;
 $__orderedPreviewRows = [];

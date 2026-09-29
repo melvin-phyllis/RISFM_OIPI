@@ -1,3 +1,6 @@
+<?php
+use App\Core\Csrf;
+?>
 <div class="card risfm-auth-card risfm-auth-card-login">
     <div class="card-body login-card-body">
         <div class="risfm-auth-brand">

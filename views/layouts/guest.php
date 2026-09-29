@@ -1,3 +1,6 @@
+<?php
+use App\Core\Csrf;
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>

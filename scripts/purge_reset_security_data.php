@@ -1,19 +1,14 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\LoginRateLimiter;
+use App\Repositories\Utilisateur\TokenResetRepository;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
-$deletedTokens = (new TokenResetModel())->purgerExpires();
+$deletedTokens = (new TokenResetRepository())->repo_purgerExpires();
 $deletedLoginAttempts = (new LoginRateLimiter())->pruneExpired();
 $redactedOccurrences = 0;
 

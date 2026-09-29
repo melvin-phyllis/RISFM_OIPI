@@ -1,4 +1,8 @@
 <?php
+use App\Core\Auth;
+use App\Core\Permission;
+?>
+<?php
 $totalFormulaires = (int) ($kpi['total_formulaires'] ?? 0);
 $totalResolus = (int) ($kpi['total_resolus'] ?? 0);
 $totalRestants = (int) ($kpi['total_restants'] ?? 0);

@@ -1,3 +1,8 @@
+<?php
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
 <?php if ($canAssign): ?>
 <div class="modal fade" id="modal-annuler-mission" tabindex="-1" role="dialog" aria-labelledby="modal-annuler-mission-titre" aria-hidden="true">
     <div class="modal-dialog" role="document">

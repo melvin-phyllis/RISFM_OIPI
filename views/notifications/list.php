@@ -1,3 +1,6 @@
+<?php
+use App\Core\Csrf;
+?>
 <div class="card">
     <div class="card-header notifications-card-header">
         <div class="text-muted small">

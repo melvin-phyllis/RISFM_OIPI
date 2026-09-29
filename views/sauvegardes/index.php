@@ -1,4 +1,7 @@
 <?php
+use App\Core\Csrf;
+?>
+<?php
 $__summary = $backupSummary ?? [];
 $__latestAge = $backupSummary['latest_age_hours'] ?? null;
 $__latestClass = $__latestAge === null ? 'is-alert' : ($__latestAge <= 24 ? 'is-green' : ($__latestAge <= 72 ? 'is-orange' : 'is-alert'));

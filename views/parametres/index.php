@@ -1,4 +1,7 @@
 <?php
+use App\Core\Csrf;
+?>
+<?php
 $__header_tabs = [
     ['id' => 'configuration-tab-identite', 'panel' => 'identite-application', 'label' => 'Identité et sécurité', 'icon' => 'fas fa-palette', 'active' => true],
     ['id' => 'configuration-tab-rappels', 'panel' => 'supervision-relances', 'label' => 'Rappels automatiques', 'icon' => 'fas fa-bell'],

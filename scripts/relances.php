@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Database;
+use App\Core\ReminderRunState;
+use App\Services\Mission\MissionReminderService;
+
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
@@ -19,16 +23,8 @@ if (!class_exists(\PHPMailer\PHPMailer\PHPMailer::class)) {
     exit(1);
 }
 
-spl_autoload_register(static function (string $class): void {
-    foreach (['core', 'models', 'controllers'] as $directory) {
-        $file = BASE_PATH . '/' . $directory . '/' . $class . '.php';
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/config/autoload.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 
 $actualExecution = false;
 try {
@@ -46,7 +42,7 @@ try {
     }
 
     if (in_array('--preview', $argv, true)) {
-        $preview = (new MissionReminderService())->preview();
+        $preview = (new MissionReminderService())->srv_preview();
         echo sprintf(
             "APERCU RELANCES: %d mission(s), %d nouvelle(s) notification(s), %d e-mail(s) en reprise, %d e-mail(s) potentiel(s).\n",
             $preview['missions'],
@@ -80,7 +76,7 @@ try {
     }
 
     $actualExecution = true;
-    $stats = (new MissionReminderService())->run($today);
+    $stats = (new MissionReminderService())->srv_run($today);
     if ($stats['verrouille']) {
         echo "RELANCES IGNOREES: une autre execution est deja en cours.\n";
         exit(0);

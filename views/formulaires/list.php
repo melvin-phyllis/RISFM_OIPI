@@ -1,4 +1,9 @@
 <?php
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
+<?php
 $__role = (string) Auth::role();
 $__total = (int) ($registryKpi['total_formulaires'] ?? 0);
 $__remaining = (int) ($registryKpi['total_restants'] ?? 0);

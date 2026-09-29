@@ -1,19 +1,16 @@
 <?php
 declare(strict_types=1);
 
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\EnvironmentGuard;
+use App\Core\ErrorHandler;
+use App\Core\Router;
+use App\Core\Security;
+
 require_once dirname(__DIR__) . '/config/config.php';
 
-// Autoloader classmap simple (sans dependre de composer pour les classes maison)
-spl_autoload_register(function (string $class): void {
-    $dirs = ['core', 'models', 'controllers'];
-    foreach ($dirs as $dir) {
-        $file = BASE_PATH . "/{$dir}/{$class}.php";
-        if (is_file($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+require_once BASE_PATH . '/config/autoload.php';
 
 // Autoloader Composer (PhpSpreadsheet, PHPWord, Dompdf) - genere par `composer install`
 $composerAutoload = BASE_PATH . '/vendor/autoload.php';
@@ -21,7 +18,7 @@ if (is_file($composerAutoload)) {
     require_once $composerAutoload;
 }
 
-require_once BASE_PATH . '/core/helpers.php';
+require_once BASE_PATH . '/app/Core/helpers.php';
 
 // Doit etre actif avant toute connexion MySQL ou initialisation de session.
 ErrorHandler::register();

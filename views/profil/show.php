@@ -1,3 +1,7 @@
+<?php
+use App\Core\Csrf;
+use App\Core\Permission;
+?>
 <div class="row">
     <div class="col-md-4">
         <div class="card card-primary card-outline">
