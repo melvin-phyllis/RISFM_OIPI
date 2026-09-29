@@ -265,7 +265,8 @@ l'evenement.
 Une installation neuve cree le premier administrateur avec
 `php scripts/seed.php` : `admin@oipi.ci` / `Admin_Oipi2026#`. L'application
 impose le changement de ce mot de passe public lors de la premiere connexion.
-Les comptes et formulaires d'exemple sont ajoutes uniquement avec `--demo`,
+Relancer le seeder reinitialise ce mot de passe. Les comptes et formulaires
+d'exemple sont ajoutes uniquement avec `--demo`,
 option explicitement interdite en production.
 
 Tests : collision croisee, ID a sept chiffres, double execution idempotente et

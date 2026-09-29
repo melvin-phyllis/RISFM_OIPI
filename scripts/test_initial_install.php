@@ -110,7 +110,14 @@ try {
         throw new RuntimeException('Le premier administrateur cree est invalide.');
     }
 
-    // Relance : rien ne doit etre ajoute ni modifie.
+    // Relance : les references sont conservees, mais le mot de passe de
+    // l'administrateur doit etre reinitialise et son changement impose.
+    $db->prepare(
+        'UPDATE utilisateurs SET mot_de_passe = :hash, doit_changer_mdp = 0 WHERE id = :id'
+    )->execute([
+        'hash' => password_hash('MotDePassePersonnalise2026#', PASSWORD_DEFAULT),
+        'id' => (int) $admin['id'],
+    ]);
     $db->exec("UPDATE parametres SET valeur = 'Nom personnalise' WHERE cle = 'app_nom'");
     [$exit, $output] = $seed();
     if ($exit !== 0 || $counts() !== $first) {
@@ -119,13 +126,24 @@ try {
     if ((string) $db->query("SELECT valeur FROM parametres WHERE cle = 'app_nom'")->fetchColumn() !== 'Nom personnalise') {
         throw new RuntimeException('Le seed a ecrase un parametre modifie depuis l administration.');
     }
+    $adminApresRelance = $db->query(
+        "SELECT mot_de_passe, doit_changer_mdp FROM utilisateurs
+         WHERE role = 'administrateur' ORDER BY id LIMIT 1"
+    )->fetch();
+    if (
+        !$adminApresRelance
+        || !password_verify(AdminSeeder::MOT_DE_PASSE, (string) $adminApresRelance['mot_de_passe'])
+        || (int) $adminApresRelance['doit_changer_mdp'] !== 1
+    ) {
+        throw new RuntimeException('Le seed n a pas reinitialise le mot de passe administrateur.');
+    }
 
     [$exit] = $seed(['--demo'], ['APP_ENV' => 'production']);
     if ($exit === 0 || $counts() !== $first) {
         throw new RuntimeException('Les donnees de demonstration doivent etre refusees en production.');
     }
 
-    echo "INSTALLATION INITIALE OK: schema sans donnee, seeders complets, relance sans effet et admin verifie.\n";
+    echo "INSTALLATION INITIALE OK: schema vide, seeders idempotents et mot de passe administrateur reinitialisable.\n";
 } finally {
     if ($created) {
         $server->exec('DROP DATABASE IF EXISTS ' . $quotedDatabase);

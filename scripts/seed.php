@@ -11,7 +11,8 @@ use Database\Seeders\DatabaseSeeder;
  *   php scripts/seed.php --demo   + comptes et formulaires de demonstration
  *
  * A lancer apres php scripts/migrate.php. La commande peut etre relancee :
- * elle n'ajoute que ce qui manque et ne modifie aucune donnee existante.
+ * les references existantes sont conservees, mais le mot de passe du premier
+ * administrateur est reinitialise.
  */
 
 if (PHP_SAPI !== 'cli') {

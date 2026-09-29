@@ -81,7 +81,8 @@ paramètres et le compte administrateur :
 
 À la première connexion, l'application demande de choisir un nouveau mot de
 passe (au moins 10 caractères, avec une majuscule, une minuscule, un chiffre et
-un caractère spécial).
+un caractère spécial). Relancer `seed.php` remet le mot de passe
+`Admin_Oipi2026#` et impose un nouveau changement.
 
 Pour avoir aussi des comptes et formulaires d'exemple sur un poste de test :
 `php scripts/seed.php --demo`.
@@ -108,7 +109,7 @@ Pour arrêter l'application : `Ctrl+C` dans le terminal.
 | `Access denied for user risfm_user` | Le mot de passe dans `.env` ne correspond pas à celui de l'étape 3. |
 | `Base table or view not found` | Refaire l'étape 5. |
 | `Table 'roles' doesn't exist` pendant l'étape 6 | Faire d'abord l'étape 5 (tables et migrations). |
-| Connexion refusée pour `admin@oipi.ci` | Relancer `php scripts/seed.php` : il indique si un administrateur existe déjà. |
+| Connexion refusée pour `admin@oipi.ci` | Relancer `php scripts/seed.php` pour réinitialiser son mot de passe à `Admin_Oipi2026#`. |
 | La page ne s'ouvre pas | Vérifier que la commande de lancement tourne toujours dans le terminal. |
 
 Pour aller plus loin (déploiement sur cPanel, e-mails, sauvegardes), voir

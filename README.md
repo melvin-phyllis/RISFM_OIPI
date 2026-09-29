@@ -108,8 +108,9 @@ localisations, paramètres et le premier administrateur :
 | `admin@oipi.ci` | `Admin_Oipi2026#` |
 
 Ce mot de passe est public (il est dans le code) : l’application impose d’en
-choisir un nouveau à la première connexion. La commande peut être relancée sans
-risque : elle n’ajoute que ce qui manque. Sur un poste de test,
+choisir un nouveau à la première connexion. Chaque relance de `seed.php`
+réinitialise ce mot de passe et impose à nouveau son changement. Les autres
+données existantes sont conservées. Sur un poste de test,
 `php scripts/seed.php --demo` ajoute aussi des comptes et formulaires fictifs.
 
 ### 5. Lancer l’application

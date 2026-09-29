@@ -11,9 +11,9 @@ use RuntimeException;
  * Base des seeders : remplissent les donnees d'une base dont les tables ont
  * deja ete creees par schema.sql et les migrations.
  *
- * Un seeder peut etre relance sans risque : il ajoute les lignes absentes et
- * ne modifie jamais une ligne existante (un libelle ou un parametre ajuste
- * depuis l'administration est donc conserve).
+ * Un seeder peut etre relance : les donnees de reference existantes sont
+ * conservees. AdminSeeder constitue l'exception explicite et reinitialise le
+ * mot de passe du premier administrateur.
  */
 abstract class Seeder
 {

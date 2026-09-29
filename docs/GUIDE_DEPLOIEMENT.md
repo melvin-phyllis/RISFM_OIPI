@@ -142,7 +142,8 @@ php scripts/check_production.php
 (`admin@oipi.ci`, mot de passe `Admin_Oipi2026#`, voir
 `database/seeders/AdminSeeder.php`). Ce mot de passe etant public, se connecter
 immediatement pour le remplacer : l'application l'exige a la premiere
-connexion. Si `php` ne correspond pas a la version choisie dans MultiPHP
+connexion. Toute relance de `seed.php` reinitialise ce mot de passe et impose
+un nouveau changement. Si `php` ne correspond pas a la version choisie dans MultiPHP
 Manager, utiliser le chemin fourni par l'hebergeur, par exemple
 `/usr/local/bin/ea-php83`.
 
@@ -252,8 +253,9 @@ de la section 8. Verifier en priorite :
 les donnees de reference et cree le premier administrateur (`admin@oipi.ci`),
 dont l'identifiant `OIPI-RISFM-NNNNNN` est derive de son identifiant interne.
 Son mot de passe initial figure dans le code : il doit etre change a la
-premiere connexion, ce que l'application impose. La commande n'ajoute que ce
-qui manque et ne modifie jamais un compte ou un parametre existant.
+premiere connexion, ce que l'application impose. Relancer le seeder
+reinitialise uniquement le mot de passe de cet administrateur ; les donnees de
+reference existantes sont conservees.
 
 `php scripts/seed.php --demo` ajoute des comptes et formulaires fictifs. Il est
 reserve aux postes de demonstration et refuse de s'executer quand

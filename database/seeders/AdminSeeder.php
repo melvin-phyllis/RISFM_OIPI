@@ -8,10 +8,8 @@ use App\Repositories\Utilisateur\UserRepository;
 /**
  * Premier compte administrateur.
  *
- * Le compte n'est cree que si aucun administrateur n'existe : un compte deja
- * present n'est jamais modifie. Le mot de passe ci-dessous est public (il est
- * dans le code) : il ne sert qu'a la premiere connexion, qui impose d'en
- * choisir un nouveau.
+ * Le compte est cree s'il n'existe pas. S'il existe deja, seul son mot de
+ * passe est reinitialise et un changement est impose a la prochaine connexion.
  */
 final class AdminSeeder extends Seeder
 {
@@ -25,10 +23,22 @@ final class AdminSeeder extends Seeder
     public function run(): string
     {
         $existant = $this->db->query(
-            "SELECT identifiant FROM utilisateurs WHERE role = 'administrateur' ORDER BY id LIMIT 1"
-        )->fetchColumn();
+            "SELECT id, identifiant FROM utilisateurs WHERE role = 'administrateur' ORDER BY id LIMIT 1"
+        )->fetch();
         if ($existant !== false) {
-            return "administrateur deja present ({$existant}), aucun compte cree";
+            $this->db->prepare(
+                'UPDATE utilisateurs
+                 SET mot_de_passe = :mot_de_passe, doit_changer_mdp = 1
+                 WHERE id = :id'
+            )->execute([
+                'mot_de_passe' => password_hash(self::MOT_DE_PASSE, PASSWORD_DEFAULT),
+                'id' => (int) $existant['id'],
+            ]);
+
+            return sprintf(
+                'administrateur deja present (%s), mot de passe reinitialise',
+                $existant['identifiant']
+            );
         }
 
         $id = $this->creerUtilisateur([
