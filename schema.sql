@@ -306,6 +306,8 @@ CREATE TABLE `missions_recherche` (
     ) STORED,
     UNIQUE KEY `uk_mr_affectation_active` (`cle_affectation_active`),
     UNIQUE KEY `uk_mr_historique` (`recherche_historique_id`),
+    CONSTRAINT `fk_mr_formulaire` FOREIGN KEY (`formulaire_id`) REFERENCES `formulaires_manquants`(`id`) ON DELETE RESTRICT,
+    CONSTRAINT `fk_mr_localisation` FOREIGN KEY (`localisation_id`) REFERENCES `localisations`(`id`) ON DELETE RESTRICT,
     CONSTRAINT `fk_mr_responsable` FOREIGN KEY (`responsable_id`) REFERENCES `utilisateurs`(`id`) ON DELETE RESTRICT,
     CONSTRAINT `fk_mr_affecte_par` FOREIGN KEY (`affecte_par`) REFERENCES `utilisateurs`(`id`) ON DELETE RESTRICT,
     CONSTRAINT `fk_mr_cloture_par` FOREIGN KEY (`cloture_par`) REFERENCES `utilisateurs`(`id`) ON DELETE RESTRICT,
@@ -349,6 +351,11 @@ CREATE TABLE `recherches_formulaire` (
     INDEX `idx_rf_formulaire_localisation` (`formulaire_id`, `localisation_id`),
     INDEX `idx_rf_responsable` (`responsable_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Lien d'une mission terminee vers sa ligne d'historique (table creee ci-dessus).
+ALTER TABLE `missions_recherche`
+    ADD CONSTRAINT `fk_mr_historique` FOREIGN KEY (`recherche_historique_id`)
+        REFERENCES `recherches_formulaire`(`id`) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 -- Table : finalisations_formulaire (Retrouve -> Numerise -> Saisi)

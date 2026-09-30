@@ -33,4 +33,5 @@ return [
     ['name' => '20260930_22_demandes_reinitialisation', 'file' => '20260930_demandes_reinitialisation.sql'],
     ['name' => '20260930_23_types_titres_officiels', 'file' => '20260930_types_titres_officiels.sql'],
     ['name' => '20260930_24_permissions_declaration_retrouve', 'file' => '20260930_permissions_declaration_retrouve.sql'],
+    ['name' => '20260930_25_cles_etrangeres_missions', 'file' => '20260930_cles_etrangeres_missions.sql'],
 ];
