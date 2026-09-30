@@ -68,7 +68,12 @@ function url(string $path = ''): string
 
 function asset(string $path): string
 {
-    return url('assets/' . ltrim($path, '/'));
+    $path = ltrim($path, '/');
+    // La date de modification dans l'URL force le navigateur a recharger un
+    // fichier modifie, sans Ctrl+F5 ni vidage du cache.
+    $file = BASE_PATH . '/public/assets/' . rawurldecode($path);
+    $version = is_file($file) ? '?v=' . filemtime($file) : '';
+    return url('assets/' . $path) . $version;
 }
 
 function e(?string $value): string
