@@ -33,8 +33,9 @@ class ApiController extends Controller
         Permission::requireOrFail('formulaires.view');
 
         $draw = (int) $this->input('draw', 1);
-        $start = (int) $this->input('start', 0);
-        $length = (int) $this->input('length', 25);
+        $start = max(0, (int) $this->input('start', 0));
+        // Page bornee : length=-1 ou une valeur enorme renverrait tout le registre.
+        $length = max(10, min(100, (int) $this->input('length', 25)));
         $orderCol = (int) ($this->input('order', [])['column'] ?? 2);
         $orderDir = $this->input('order', [])['dir'] ?? 'desc';
         $orderColumnSql = self::FORMULAIRES_COLUMNS[$orderCol] ?? 'f.annee';

@@ -25,7 +25,7 @@ class Auth
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path'     => '/',
-                'secure'   => !empty($_SERVER['HTTPS']),
+                'secure'   => Security::isHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -119,9 +119,8 @@ class Auth
         $_SESSION['_connection_activity_written_at'] = $now;
 
         try {
-            $db = Database::getConnection();
             ConnectionActivity::touch(
-                $db,
+                null,
                 $connectionId,
                 $userId,
                 SESSION_ACTIVITY_LOCK_WAIT_SECONDS

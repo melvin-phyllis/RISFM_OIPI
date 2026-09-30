@@ -6,6 +6,7 @@ namespace App\Services\Auth;
 use App\Core\AppMailer;
 use App\Core\Database;
 use App\Core\Logger;
+use App\Core\PasswordResetRateLimiter;
 use App\Core\Security;
 use App\Dto\Auth\MotDePasseOublieDTO;
 use App\Dto\Auth\ReinitialiserMotDePasseDTO;
@@ -27,11 +28,19 @@ final class PasswordResetService
      * Envoie un lien si un compte actif correspond a l'adresse. Le resultat
      * n'est jamais revele a l'appelant (protection contre l'enumeration).
      *
+     * Au-dela du quota par adresse ou par IP, la demande est ignoree sans que
+     * l'appelant le sache : chaque nouveau lien invalidant le precedent, un
+     * envoi illimite empecherait le titulaire de reinitialiser son compte.
+     *
      * @param array $dataValidated donnees de MotDePasseOublieFormRequest
      */
-    public function srv_demander(array $dataValidated): void
+    public function srv_demander(array $dataValidated, ?string $ip = null): void
     {
         $email = MotDePasseOublieDTO::fromArray($dataValidated)->email;
+        if (!(new PasswordResetRateLimiter())->attempt($email, $ip)) {
+            error_log('[RISFM Securite] Demande de reinitialisation ignoree : quota atteint (IP ' . ($ip ?? 'inconnue') . ').');
+            return;
+        }
         $tokenRepository = new TokenResetRepository();
         $tokenRepository->repo_purgerExpires();
         $user = (new UserRepository())->repo_findByEmail($email);
@@ -85,19 +94,10 @@ final class PasswordResetService
             throw new InvalidArgumentException($passwordError);
         }
 
-        $db = Database::getConnection();
-        $startedTransaction = !$db->inTransaction();
-        if ($startedTransaction) {
-            $db->beginTransaction();
-        }
-
-        try {
+        return Database::transaction(static function () use ($token, $newPassword): ?int {
             $tokens = new TokenResetRepository();
             $tokenRow = $tokens->repo_valide($token, true);
             if ($tokenRow === null) {
-                if ($startedTransaction) {
-                    $db->rollBack();
-                }
                 return null;
             }
 
@@ -105,10 +105,9 @@ final class PasswordResetService
             $users = new UserRepository();
             $user = $users->repo_find($userId);
             if ($user === null || (int) $user['actif'] !== 1) {
+                // Le lien d'un compte desactive est invalide et cette
+                // invalidation est conservee (la transaction est validee).
                 $tokens->repo_invaliderTous($userId);
-                if ($startedTransaction) {
-                    $db->commit();
-                }
                 return null;
             }
 
@@ -116,16 +115,7 @@ final class PasswordResetService
             // connexions actives et invalide tous les jetons du compte.
             $users->repo_setPassword($userId, $newPassword, false);
             $users->repo_clearFailedLoginAttempts($userId);
-
-            if ($startedTransaction) {
-                $db->commit();
-            }
             return $userId;
-        } catch (Throwable $exception) {
-            if ($startedTransaction && $db->inTransaction()) {
-                $db->rollBack();
-            }
-            throw $exception;
-        }
+        });
     }
 }

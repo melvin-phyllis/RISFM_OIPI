@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Core\LoginRateLimiter;
+use App\Core\PasswordResetRateLimiter;
 use App\Repositories\Utilisateur\TokenResetRepository;
 
 require_once dirname(__DIR__) . '/config/config.php';
@@ -10,6 +11,7 @@ require_once BASE_PATH . '/config/autoload.php';
 
 $deletedTokens = (new TokenResetRepository())->repo_purgerExpires();
 $deletedLoginAttempts = (new LoginRateLimiter())->pruneExpired();
+$deletedResetRequests = (new PasswordResetRateLimiter())->pruneExpired();
 $redactedOccurrences = 0;
 
 foreach (glob(STORAGE_PATH . '/logs/*.log') ?: [] as $logFile) {
@@ -46,8 +48,9 @@ foreach (glob(STORAGE_PATH . '/logs/*.log') ?: [] as $logFile) {
 }
 
 echo sprintf(
-    "PURGE SECURITE OK: %d jeton(s) expire(s), %d tentative(s) de connexion ancienne(s) supprimee(s), %d secret(s) masque(s) dans les journaux.\n",
+    "PURGE SECURITE OK: %d jeton(s) expire(s), %d tentative(s) de connexion ancienne(s), %d demande(s) de reinitialisation ancienne(s) supprimee(s), %d secret(s) masque(s) dans les journaux.\n",
     $deletedTokens,
     $deletedLoginAttempts,
+    $deletedResetRequests,
     $redactedOccurrences
 );

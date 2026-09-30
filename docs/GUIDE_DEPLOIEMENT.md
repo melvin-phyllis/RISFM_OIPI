@@ -84,10 +84,10 @@ Copier `.env.example` vers `.env` dans `/home/COMPTE_CPANEL/risfm`, puis adapter
 au minimum les valeurs suivantes :
 
 ```dotenv
-APP_NAME="OIPI - RISFM"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://risfm.exemple.ci
+APP_FORCE_HTTPS=true
 APP_TIMEZONE=Africa/Abidjan
 
 DB_HOST=localhost
@@ -105,7 +105,6 @@ MAIL_USER=no-reply@exemple.ci
 MAIL_PASS=MotDePasseReelDeLaBoite
 MAIL_FROM=no-reply@exemple.ci
 MAIL_FROM_NAME="OIPI - RISFM"
-MAIL_DRY_RUN=false
 
 ENABLE_MISSION_REMINDERS=true
 REMINDER_CRON_SCHEDULE="0 8 * * *"
@@ -118,6 +117,11 @@ ticket d'assistance ou une capture d'ecran.
 
 En mode `production`, l'application refuse volontairement de demarrer si HTTPS,
 l'OTP, le SMTP ou le mot de passe MySQL ne sont pas correctement configures.
+
+`APP_FORCE_HTTPS=true` (valeur par defaut quand `APP_URL` commence par
+`https://`) marque le cookie de session `Secure` et envoie l'en-tete HSTS meme
+lorsque l'hebergeur termine HTTPS sur un proxy sans le signaler a PHP. Les
+en-tetes `X-Forwarded-*` ne sont jamais utilises : ils peuvent etre falsifies.
 
 ### 2.5. Appliquer les migrations et creer l'administrateur
 
@@ -224,21 +228,14 @@ de la section 8. Verifier en priorite :
 1. Copier le dossier `RISFM/` dans `C:\xampp\htdocs\` (XAMPP) ou `C:\wamp64\www\` (WAMP).
 2. Demarrer Apache et MySQL depuis le panneau de controle XAMPP/WAMP.
 3. Ouvrir phpMyAdmin (`http://localhost/phpmyadmin`), creer une base `oipi_risfm` (jeu de caracteres `utf8mb4_unicode_ci`), puis importer `schema.sql` via l'onglet **Importer**.
-4. Dans le dossier `RISFM/`, copier `.env.example` en `.env` et renseigner :
-   ```dotenv
-   APP_ENV=development
-   APP_DEBUG=true
-   APP_URL=http://localhost/RISFM/public
-
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_NAME=oipi_risfm
-   DB_USER=root
-   DB_PASS=
-
-   # Desactiver l'OTP uniquement tant que le SMTP local n'est pas configure.
-   ENABLE_LOGIN_OTP=false
+4. Dans le dossier `RISFM/`, copier le fichier de configuration pret pour XAMPP :
+   ```bat
+   copy .env.xampp.example .env
    ```
+   Il utilise le compte MySQL `root` sans mot de passe de XAMPP (y compris pour
+   les sauvegardes), detecte seul l'adresse du site et desactive le code de
+   connexion par e-mail. Rien a modifier, sauf si le `root` de votre XAMPP a un
+   mot de passe (`DB_PASS` et `DB_MAINTENANCE_PASS`).
 5. Ouvrir une invite de commande dans le dossier `RISFM/` et executer `composer install`.
 6. Executer `php scripts/migrate.php` afin d'enregistrer et verifier la version du schema.
 7. Executer `php scripts/seed.php` pour ecrire les donnees de reference et
@@ -445,6 +442,11 @@ server {
       bloquer un autre poste, et le seuil IP bloque une rotation d'identifiants.
 - [ ] `php scripts/purge_reset_security_data.php` supprime les anciennes
       tentatives sans effacer les evenements recents.
+- [ ] Au-dela de 3 demandes « mot de passe oublie » par heure pour une meme
+      adresse (10 par adresse IP), aucun nouvel e-mail n'est envoye et le
+      message affiche reste identique.
+- [ ] Dans les outils du navigateur, le cookie `RISFM_SESSION` porte les
+      attributs `Secure`, `HttpOnly` et `SameSite=Lax`.
 - [ ] L'import CSV/XLSX refuse entièrement un fichier contenant une ligne invalide.
 - [ ] Une mission affectee apparait sur le tableau de bord du responsable.
 - [ ] La saisie d'un resultat « Retrouve » clot les autres missions actives du dossier.

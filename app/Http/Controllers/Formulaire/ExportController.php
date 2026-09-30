@@ -9,12 +9,12 @@ use App\Core\Database;
 use App\Core\Logger;
 use App\Core\Permission;
 use App\Core\Security;
+use App\Core\Transaction;
 use App\Repositories\Formulaire\FormulaireRepository;
 use DomainException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Generator;
-use PDO;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -24,6 +24,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Settings as WordSettings;
 use RuntimeException;
 use Throwable;
 
@@ -67,8 +68,6 @@ class ExportController extends Controller
         ignore_user_abort(true);
         $path = '';
         $spreadsheet = null;
-        $db = Database::getConnection();
-        $startedTransaction = !$db->inTransaction();
 
         try {
             if (!Security::ensureDirectory(STORAGE_PATH . '/tmp')) {
@@ -81,16 +80,11 @@ class ExportController extends Controller
             }
             $filters = $normalized['filters'];
 
-            if ($startedTransaction) {
-                $db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-                $db->beginTransaction();
-            }
-            $model = new FormulaireRepository();
-            $statistics = $model->repo_statistiquesDetaillees($filters);
-            $options = $model->repo_optionsStatistiques();
-            if ($startedTransaction) {
-                $db->commit();
-            }
+            // Les deux lectures voient le meme etat de la base.
+            [$statistics, $options] = Database::transaction(static function () use ($filters): array {
+                $model = new FormulaireRepository();
+                return [$model->repo_statistiquesDetaillees($filters), $model->repo_optionsStatistiques()];
+            }, 'REPEATABLE READ');
 
             $path = $this->temporaryFile('xlsx');
             $spreadsheet = new Spreadsheet();
@@ -191,9 +185,6 @@ class ExportController extends Controller
                 false
             );
         } catch (Throwable $e) {
-            if ($startedTransaction && $db->inTransaction()) {
-                $db->rollBack();
-            }
             if ($spreadsheet instanceof Spreadsheet) {
                 $spreadsheet->disconnectWorksheets();
             }
@@ -442,6 +433,9 @@ class ExportController extends Controller
         try {
             $context = $this->openExportContext();
             $path = $this->temporaryFile('docx');
+            // Sans echappement, un "&" ou un "<" saisi dans un formulaire produit
+            // un document Word invalide (XML casse).
+            WordSettings::setOutputEscapingEnabled(true);
             $phpWord = new PhpWord();
             $section = $phpWord->addSection([
                 'orientation' => 'landscape',
@@ -508,7 +502,7 @@ class ExportController extends Controller
     }
 
     /**
-     * @return array{db:PDO,transaction:bool,model:FormulaireRepository,filters:array,current_user:array,expected:int}
+     * @return array{transaction:Transaction,repository:FormulaireRepository,filters:array,current_user:array,expected:int}
      */
     private function openExportContext(): array
     {
@@ -533,26 +527,19 @@ class ExportController extends Controller
             'mes_dossiers' => $this->input('mes_dossiers'),
         ];
         $currentUser = ['id' => (int) Auth::id()];
-        $db = Database::getConnection();
-        $startedTransaction = !$db->inTransaction();
-        if ($startedTransaction) {
-            $db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-            $db->beginTransaction();
-        }
-
+        // Le comptage et toutes les lignes exportees lisent le meme etat de la
+        // base : la transaction reste ouverte jusqu'a la fin du fichier.
+        $transaction = Database::ouvrirTransaction('REPEATABLE READ');
         try {
             $model = new FormulaireRepository();
             $expected = $model->repo_searchCount($filters, $currentUser);
         } catch (Throwable $e) {
-            if ($startedTransaction && $db->inTransaction()) {
-                $db->rollBack();
-            }
+            $transaction->annuler();
             throw $e;
         }
 
         return [
-            'db' => $db,
-            'transaction' => $startedTransaction,
+            'transaction' => $transaction,
             'repository' => $model,
             'filters' => $filters,
             'current_user' => $currentUser,
@@ -590,9 +577,7 @@ class ExportController extends Controller
 
     private function commitExportContext(array $context): void
     {
-        if ($context['transaction'] && $context['db']->inTransaction()) {
-            $context['db']->commit();
-        }
+        $context['transaction']->valider();
     }
 
     private function logExport(
@@ -928,12 +913,8 @@ class ExportController extends Controller
     /** @param array<int, string> $paths */
     private function failExport(array $context, array $paths, string $format, Throwable $exception): never
     {
-        if (($context['transaction'] ?? false)
-            && isset($context['db'])
-            && $context['db'] instanceof PDO
-            && $context['db']->inTransaction()
-        ) {
-            $context['db']->rollBack();
+        if (($context['transaction'] ?? null) instanceof Transaction) {
+            $context['transaction']->annuler();
         }
         foreach ($paths as $path) {
             if (is_file($path)) {

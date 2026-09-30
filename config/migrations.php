@@ -30,4 +30,5 @@ return [
     ['name' => '20260729_19_statuts_workflow_systeme', 'file' => '20260729_statuts_workflow_systeme.sql'],
     ['name' => '20260804_20_login_rate_limit_ip', 'file' => '20260804_login_rate_limit_ip.sql'],
     ['name' => '20260805_21_palette_oipi_verte', 'file' => '20260805_palette_oipi_verte.sql'],
+    ['name' => '20260930_22_demandes_reinitialisation', 'file' => '20260930_demandes_reinitialisation.sql'],
 ];

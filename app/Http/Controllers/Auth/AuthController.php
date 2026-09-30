@@ -289,8 +289,8 @@ class AuthController extends Controller
 
         $redirectTo = $_SESSION['redirect_after_login'] ?? null;
         unset($_SESSION['redirect_after_login']);
-        if ($redirectTo
-            && str_starts_with($redirectTo, '/')
+        if (is_string($redirectTo)
+            && self::isInternalPath($redirectTo)
             && !str_contains($redirectTo, 'login')
             && !str_contains($redirectTo, 'verification-code')
         ) {
@@ -299,6 +299,17 @@ class AuthController extends Controller
         }
 
         $this->redirect('dashboard');
+    }
+
+    /**
+     * Chemin local uniquement : "//hote", "/\hote", un schema ou des
+     * caracteres de controle permettraient au navigateur de quitter le site.
+     */
+    private static function isInternalPath(string $path): bool
+    {
+        return preg_match('#^/(?![/\\\\])[^\\\\\x00-\x1F\x7F]*$#', $path) === 1
+            && parse_url($path, PHP_URL_HOST) === null
+            && parse_url($path, PHP_URL_SCHEME) === null;
     }
 
     private function maskEmail(string $email): string
@@ -324,7 +335,7 @@ class AuthController extends Controller
     public function ctrl_forgot(): void
     {
         $data = $this->validateRequest(MotDePasseOublieFormRequest::class, 'mot-de-passe-oublie');
-        (new PasswordResetService())->srv_demander($data);
+        (new PasswordResetService())->srv_demander($data, $_SERVER['REMOTE_ADDR'] ?? null);
         // Message volontairement identique que le compte existe ou non (anti-enumeration).
         setFlash('success', 'Si un compte existe avec cette adresse, un lien de reinitialisation vient de lui etre envoye. Verifiez egalement le dossier des courriers indesirables.');
         $this->redirect('mot-de-passe-oublie');

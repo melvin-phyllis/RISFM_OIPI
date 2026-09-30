@@ -44,6 +44,7 @@ $(function () {
         ],
         order: [[2, 'desc']],
         pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         initComplete: function () {
             const container = $(this.api().table().container());
             $('#registry-priority-legend').appendTo(container.find('.priority-legend-host').first());

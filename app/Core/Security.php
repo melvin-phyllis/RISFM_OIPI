@@ -58,9 +58,23 @@ class Security
         header('X-Frame-Options: SAMEORIGIN');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';");
-        if (!empty($_SERVER['HTTPS'])) {
+        if (self::isHttps()) {
             header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
         }
+    }
+
+    /**
+     * Vrai si l'application est servie en HTTPS. APP_FORCE_HTTPS couvre les
+     * proxys et hebergeurs qui terminent TLS sans renseigner $_SERVER['HTTPS'] ;
+     * les en-tetes X-Forwarded-* ne sont jamais crus car falsifiables.
+     */
+    public static function isHttps(): bool
+    {
+        if (APP_FORCE_HTTPS) {
+            return true;
+        }
+        $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+        return $https !== '' && $https !== 'off';
     }
 
     /**

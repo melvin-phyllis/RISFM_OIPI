@@ -223,7 +223,7 @@ foreach ([
     'notification_lectures', 'notifications', 'pieces_jointes', 'reouvertures_formulaire',
     'finalisations_formulaire',
     'recherches_formulaire', 'missions_recherche',
-    'formulaires_manquants', 'tokens_reinitialisation', 'tentatives_connexion',
+    'formulaires_manquants', 'tokens_reinitialisation', 'tentatives_connexion', 'demandes_reinitialisation',
     'connexions', 'activites',
 ] as $table) {
     $db->exec('TRUNCATE TABLE ' . $table);

@@ -166,6 +166,7 @@ try {
         ['P8 , resilience MySQL', 'test_p8_resilience.php', 60],
         ['Transactions et points de reprise', 'test_database_transactions.php', 30],
         ['Securite , limitation des connexions', 'test_login_rate_limiter.php', 60],
+        ['Securite , limitation du mot de passe oublie', 'test_password_reset_rate_limit.php', 60],
         ['P9 , reinitialisation securisee', 'test_p9_password_reset.php', 60],
         ['Acces utilisateur securise et cycle de vie', 'test_secure_user_access.php', 120],
         ['Relances automatiques des missions', 'test_mission_reminders.php', 120],
