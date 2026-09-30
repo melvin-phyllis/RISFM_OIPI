@@ -42,7 +42,6 @@ $maxBacklogAge = max(1, ...array_map(
 <div class="oipi-dashboard statistics-analytics-shell">
     <header class="oipi-dashboard-hero statistics-analytics-hero" aria-labelledby="statistics-page-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-chart-pie" aria-hidden="true"></i> Analyse du registre OIPI</span>
             <h1 id="statistics-page-title">Statistiques</h1>
             <p>Comparez les tendances, les délais et la performance réelle des recherches.</p>
         </div>

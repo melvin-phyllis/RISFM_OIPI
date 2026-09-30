@@ -41,7 +41,6 @@ $__maxCategoryRemaining = max(1, ...array_map(
 <div class="oipi-dashboard oipi-dashboard-admin">
     <header class="oipi-dashboard-hero" aria-labelledby="dashboard-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-chart-line" aria-hidden="true"></i> Pilotage national OIPI</span>
             <h1 id="dashboard-title">Tableau de bord</h1>
             <p>Suivez la recherche, la numérisation et la saisie des formulaires manquants.</p>
         </div>

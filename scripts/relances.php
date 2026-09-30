@@ -31,7 +31,7 @@ try {
     $today = null;
     $showStatus = in_array('--status', $argv, true);
     if ($showStatus) {
-        $status = (new ReminderRunState(Database::getConnection()))->status();
+        $status = (new ReminderRunState())->status();
         echo 'RELANCES: ' . strtoupper($status['state']) . ' , ' . $status['label'] . "\n";
         echo 'Dernier debut : ' . ($status['last_started'] ?? 'jamais') . "\n";
         echo 'Derniere fin : ' . ($status['last_finished'] ?? 'jamais') . "\n";
@@ -94,7 +94,7 @@ try {
 } catch (Throwable $exception) {
     if ($actualExecution) {
         try {
-            (new ReminderRunState(Database::getConnection()))->fail($exception);
+            (new ReminderRunState())->fail($exception);
         } catch (Throwable) {
             // L'erreur originale reste prioritaire, notamment si MySQL est indisponible.
         }

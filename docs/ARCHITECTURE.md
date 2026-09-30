@@ -184,7 +184,7 @@ de dialogue sont regroupées dans `views/formulaires/partials/modals.php`.
 | `Auth`, `LoginOtp`, `Permission` | sessions, OTP et contrôle des droits |
 | `LoginRateLimiter` | blocage temporaire par identifiant et IP ; la persistance passe par `TentativeConnexionRepository` |
 | `Csrf`, `Security`, `EnvironmentGuard` | protection des requêtes et de la configuration |
-| `Database`, `Repository` | connexion PDO, `Database::transaction()` et base des repositories (`repo_find`, `repo_insert`, `repo_update`...) |
+| `Database`, `Transaction`, `Repository` | connexion PDO, transactions (`Database::transaction()`, `Database::ouvrirTransaction()`) et base des repositories (`repo_find`, `repo_insert`, `repo_update`...) |
 | `Logger` | journal d'audit avec acteur, cible et valeurs avant/après, persisté par `ActiviteRepository` |
 | `AppMailer` | mot de passe oublié, création de compte, OTP, missions et relances |
 | `MigrationRunner` | migrations ordonnées, verrouillées et contrôlées par checksum |
@@ -211,6 +211,19 @@ d'audit. Une mutation est annulée si sa journalisation obligatoire échoue.
 - Une action POST doit vérifier l'authentification, la permission et le jeton CSRF.
 - Une mutation métier importante doit être transactionnelle
   (`Database::transaction()`) et journalisée.
+- Le SQL n'existe que dans `app/Repositories/`, plus quatre classes techniques
+  (`Repository`, `Database`, `MigrationRunner`, `DatabaseBackup`) et les
+  seeders. Un service ou un contrôleur ne récupère jamais la connexion : il
+  appelle un repository, ou `Database::transaction()` pour grouper des écritures.
+- `Database::transaction($operation, $isolation)` : appelée dans une
+  transaction déjà ouverte, elle pose un point de reprise (SAVEPOINT), si bien
+  qu'un échec n'annule que son propre travail. `$isolation` (`REPEATABLE READ`…)
+  s'applique à une nouvelle transaction.
+- `Database::ouvrirTransaction()` renvoie une `Transaction` à valider
+  (`valider()`) ou annuler (`annuler()`) plus tard : c'est le cas de l'export,
+  qui lit un état cohérent de la base pendant toute la production du fichier.
+- Contrôle avant livraison, qui ne doit rien afficher :
+  `grep -rlE '(->prepare\(|->query\(|->exec\(|SELECT |INSERT INTO|UPDATE [a-z_`]+ SET|DELETE FROM|FOR UPDATE|SAVEPOINT|Database::getConnection)' app --include=*.php | grep -vE '^app/Repositories/|^app/Core/(Repository|Database|MigrationRunner|DatabaseBackup)\.php$'`
 - Une règle métier doit être placée dans un service de `app/Services/`, pas
   dans un contrôleur ni dans une vue ; le SQL reste dans `app/Repositories/`.
 - Une vue ne doit pas interroger la base : le contrôleur lui fournit ses

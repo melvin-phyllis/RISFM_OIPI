@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Administration;
 
 use App\Core\Auth;
 use App\Core\Controller;
-use App\Core\Database;
 use App\Core\ReminderRunState;
 use App\Http\Requests\Administration\ElementListeFormRequest;
 use App\Http\Requests\Administration\UpdateParametresGenerauxFormRequest;
@@ -35,7 +34,7 @@ class ParametreController extends Controller
             'workflowStatusCodes' => array_keys(StatutRepository::WORKFLOW),
             'statusWorkflowHealth' => $statusRepository->repo_workflowHealth(),
             'localisations' => (new LocalisationRepository())->repo_all('libelle', 'ASC'),
-            'reminderHealth' => (new ReminderRunState(Database::getConnection()))->status(),
+            'reminderHealth' => (new ReminderRunState())->status(),
         ]);
     }
 

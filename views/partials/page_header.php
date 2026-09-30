@@ -20,9 +20,7 @@ $__pageTabs = is_array($__header_tabs ?? null) ? $__header_tabs : [];
     <div class="container-fluid">
         <div class="risfm-page-header-inner">
             <div class="risfm-page-heading">
-                <span class="risfm-page-icon" aria-hidden="true">
-                    <i class="<?= e($__pageIcon) ?>"></i>
-                </span>
+               
                 <div class="risfm-page-heading-text">
                     <h1><?= e($__title ?? '') ?></h1>
                     <?php if ($__pageSubtitle !== ''): ?>

@@ -21,7 +21,8 @@ final class ReminderRunState
 
     private ParametreRepository $parameters;
 
-    public function __construct(PDO $db)
+    /** @param PDO|null $db connexion a utiliser (null = celle de l'application) */
+    public function __construct(?PDO $db = null)
     {
         $this->parameters = new ParametreRepository($db);
     }

@@ -16,8 +16,12 @@ final class ConnectionActivity
         return $lastWriteAt <= 0 || ($now - $lastWriteAt) >= max(1, $intervalSeconds);
     }
 
+    /**
+     * @param PDO|null $db connexion a utiliser (null = celle de l'application ;
+     *                     les tests en passent une autre pour simuler un verrou)
+     */
     public static function touch(
-        PDO $db,
+        ?PDO $db,
         int $connectionId,
         int $userId,
         int $lockWaitSeconds = 1

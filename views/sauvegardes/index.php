@@ -24,7 +24,6 @@ $__latestHint = $__latestAge === null
 <div class="oipi-dashboard backup-workspace">
     <header class="oipi-dashboard-hero backup-workspace-hero" aria-labelledby="backup-page-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-shield-alt" aria-hidden="true"></i> Continuité de service</span>
             <h1 id="backup-page-title">Sauvegardes</h1>
             <p>Protégez les données du registre et restaurez une copie contrôlée en cas d’incident.</p>
         </div>

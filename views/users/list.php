@@ -23,7 +23,6 @@ $activeRate = pct($activeUsers, $totalUsers);
 <div class="oipi-dashboard users-workspace">
     <header class="oipi-dashboard-hero users-workspace-hero" aria-labelledby="users-page-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-user-shield" aria-hidden="true"></i> Administration des accès</span>
             <h1 id="users-page-title">Utilisateurs</h1>
             <p>Gérez les comptes, les rôles et la sécurité d’accès au registre.</p>
         </div>

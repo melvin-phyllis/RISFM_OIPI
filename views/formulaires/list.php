@@ -17,7 +17,6 @@ $__resolutionRate = pct($__found, $__total);
 <div class="registry-workspace">
     <header class="registry-hero" aria-labelledby="registry-page-title">
         <div class="registry-hero-copy">
-            <span class="registry-eyebrow"><i class="fas fa-folder-open" aria-hidden="true"></i> Registre national OIPI</span>
             <h1 id="registry-page-title">Formulaires manquants</h1>
             <p>Centralisez les dossiers, organisez les recherches et suivez leur finalisation.</p>
         </div>

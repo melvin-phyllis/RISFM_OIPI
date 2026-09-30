@@ -21,7 +21,6 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
 <div class="oipi-dashboard configuration-analytics-shell">
     <header class="oipi-dashboard-hero configuration-analytics-hero" aria-labelledby="configuration-page-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-cogs" aria-hidden="true"></i> Administration du logiciel</span>
             <h1 id="configuration-page-title">Configuration</h1>
             <p>Personnalisez l’identité, surveillez les automatisations et gérez les listes utilisées par le registre.</p>
         </div>
@@ -201,14 +200,7 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
         </div>
     </div>
 
-    <details class="configuration-workflow-info mb-3">
-        <summary><i class="fas fa-shield-alt mr-2" aria-hidden="true"></i><strong>Workflow des statuts protege</strong><span>Voir les regles</span></summary>
-        <div>
-            Les sept etapes techniques sont fixes :
-            <strong>Introuvable → En recherche → A verifier → Retrouve → Numerise → Saisi → Archive</strong>.
-            Seuls le libelle affiche et la couleur peuvent etre personnalises.
-        </div>
-    </details>
+    
     <?php if (empty($statusWorkflowHealth['ok'])): ?>
     <div class="alert alert-danger">
         <strong>Configuration des statuts incohérente.</strong>

@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Services\Mission;
 
 use App\Core\AppMailer;
-use App\Core\Database;
 use App\Core\Logger;
 use App\Core\ReminderRunState;
 use App\Repositories\Mission\MissionRechercheRepository;
@@ -19,7 +18,7 @@ use Throwable;
 /** Genere les rappels d'echeance sans doublon et relance les e-mails en echec. */
 final class MissionReminderService
 {
-    private PDO $db;
+    private ?PDO $db;
     private AppMailer $mailer;
     private NotificationRepository $notifications;
     private MissionRechercheRepository $missions;
@@ -28,7 +27,8 @@ final class MissionReminderService
 
     public function __construct(?PDO $db = null, ?AppMailer $mailer = null)
     {
-        $this->db = $db ?? Database::getConnection();
+        // null = connexion de l'application ; les tests passent celle d'une base jetable.
+        $this->db = $db;
         $this->mailer = $mailer ?? new AppMailer();
         $this->notifications = new NotificationRepository($this->db);
         $this->missions = new MissionRechercheRepository($this->db);

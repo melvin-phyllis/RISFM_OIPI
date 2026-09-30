@@ -9,7 +9,6 @@ $journalSensitive = (int) ($journalStats['sensibles_24h'] ?? 0);
 <div class="oipi-dashboard journal-workspace">
     <header class="oipi-dashboard-hero journal-workspace-hero" aria-labelledby="journal-page-title">
         <div class="oipi-dashboard-hero-copy">
-            <span class="oipi-dashboard-eyebrow"><i class="fas fa-fingerprint" aria-hidden="true"></i> Audit et traçabilité</span>
             <h1 id="journal-page-title">Journal d’activité</h1>
             <p>Retrouvez chaque opération métier, administrative et de sécurité enregistrée dans l’application.</p>
         </div>

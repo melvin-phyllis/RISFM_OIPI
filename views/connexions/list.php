@@ -26,7 +26,6 @@ $__connectionAnalyticsJson = json_encode(
 <div class="connection-analytics-shell">
     <header class="connection-analytics-hero">
         <div>
-            <span class="connection-analytics-eyebrow"><i class="fas fa-shield-alt mr-1"></i>Supervision des accès</span>
             <h1>Analyse des connexions</h1>
             <p>Suivez l’activité des utilisateurs, les sessions ouvertes et les expirations liées à l’inactivité.</p>
         </div>
