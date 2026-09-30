@@ -61,7 +61,7 @@ $__previewRows = array_slice($__orderedPreviewRows, 0, (int) $previewLimit);
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Le modèle indique les colonnes reconnues. Un export CSV ou Excel du registre peut également être réimporté.
+                    Le modèle contient les quatre colonnes reconnues : Type de titre, Année, Numéro du formulaire et Priorité.
                 </p>
                 <a href="<?= url('formulaires/importer/modele/xlsx') ?>" class="btn btn-outline-success mr-2 mb-2">
                     <i class="fas fa-file-excel mr-1"></i>Modèle Excel
@@ -83,14 +83,13 @@ $__previewRows = array_slice($__orderedPreviewRows, 0, (int) $previewLimit);
             <div class="col-lg-6">
                 <ul class="mb-lg-0 pl-4">
                     <li><strong>Obligatoires :</strong> Type de titre, Année et Numéro du formulaire.</li>
-                    <li>Un statut vide est interprété comme <strong>Introuvable</strong>.</li>
-                    <li>Les codes ou libellés actifs sont acceptés pour le type et le statut.</li>
+                    <li><strong>Priorité</strong> facultative : Basse, Normale, Haute ou Urgente (vide = Normale).</li>
+                    <li>Le type de titre accepte son code ou son libellé actif.</li>
                 </ul>
             </div>
             <div class="col-lg-6">
                 <ul class="mb-0 pl-4">
-                    <li>Une recherche exige localisation, responsable, date et résultat.</li>
-                    <li>Le responsable doit être un compte actif ; son identifiant OIPI-RISFM ou son e-mail est recommandé.</li>
+                    <li>Chaque formulaire est créé au statut <strong>Introuvable</strong>, sans mission : les affectations se font ensuite depuis sa fiche.</li>
                     <li><strong>Aucun import partiel :</strong> une ligne invalide bloque tout le fichier.</li>
                 </ul>
             </div>
@@ -132,11 +131,8 @@ $__previewRows = array_slice($__orderedPreviewRows, 0, (int) $previewLimit);
                         <th>Type</th>
                         <th>Année</th>
                         <th>Numéro</th>
-                        <th>Statut</th>
-                        <th>Localisation</th>
-                        <th>Responsable</th>
-                        <th>Date</th>
-                        <th>Résultat / erreurs</th>
+                        <th>Priorité</th>
+                        <th>Erreurs</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -151,14 +147,9 @@ $__previewRows = array_slice($__orderedPreviewRows, 0, (int) $previewLimit);
                         <td><?= e((string) ($__row['display']['type_titre'] ?? '')) ?></td>
                         <td><?= e((string) ($__row['display']['annee'] ?? '')) ?></td>
                         <td><?= e((string) ($__row['display']['numero_formulaire'] ?? '')) ?></td>
-                        <td><?= e((string) ($__row['display']['statut'] ?? '')) ?></td>
-                        <td><?= e((string) ($__row['display']['localisation'] ?? '')) ?></td>
-                        <td><?= e((string) ($__row['display']['responsable'] ?? '')) ?></td>
-                        <td><?= e((string) ($__row['display']['date_recherche'] ?? '')) ?></td>
+                        <td><?= e((string) ($__row['display']['priorite'] ?? '')) ?></td>
                         <td style="min-width: 260px;">
-                            <?php if ($__row['valid']): ?>
-                            <?= e((string) ($__row['display']['resultat'] ?? '')) ?>
-                            <?php else: ?>
+                            <?php if (!$__row['valid']): ?>
                             <ul class="mb-0 pl-3">
                                 <?php foreach ($__row['errors'] as $__rowError): ?>
                                 <li><?= e((string) $__rowError) ?></li>

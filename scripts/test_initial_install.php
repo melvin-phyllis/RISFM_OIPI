@@ -89,7 +89,7 @@ try {
         throw new RuntimeException('Premier seed en echec : ' . trim($output));
     }
     $first = $counts();
-    if ((int) $first['roles'] !== 4 || (int) $first['statuts'] !== 7 || (int) $first['types'] !== 7
+    if ((int) $first['roles'] !== 4 || (int) $first['statuts'] !== 7 || (int) $first['types'] !== 8
         || (int) $first['localisations'] !== 10 || (int) $first['parametres'] !== 6
         || (int) $first['permissions'] !== 23 || (int) $first['utilisateurs'] !== 1
     ) {

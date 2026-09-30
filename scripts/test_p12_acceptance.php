@@ -268,7 +268,7 @@ foreach (['responsable', 'agent', 'consultation'] as $index => $role) {
     $users[$role] = (int) $db->lastInsertId();
 }
 
-$typeId = (int) $scalar("SELECT id FROM types_titres WHERE code = 'marque'");
+$typeId = (int) $scalar("SELECT id FROM types_titres WHERE code = 'MAQ'");
 $openStatusId = (int) $scalar("SELECT id FROM statuts WHERE code = 'introuvable'");
 $inResearchStatusId = (int) $scalar("SELECT id FROM statuts WHERE code = 'en_recherche'");
 $resolvedStatusId = (int) $scalar("SELECT id FROM statuts WHERE code = 'retrouve'");

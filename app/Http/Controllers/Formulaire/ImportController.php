@@ -225,8 +225,7 @@ class ImportController extends Controller
             fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, [
                 'Ligne', 'Etat', 'Type de titre', 'Annee', 'Numero du formulaire',
-                'Statut', 'Localisation recherchee', 'Responsable',
-                'Date de recherche', 'Resultat', 'Erreurs',
+                'Priorite', 'Erreurs',
             ], ';');
             foreach ($analysis['rows'] as $row) {
                 $display = $row['display'];
@@ -236,11 +235,7 @@ class ImportController extends Controller
                     (string) ($display['type_titre'] ?? ''),
                     (string) ($display['annee'] ?? ''),
                     (string) ($display['numero_formulaire'] ?? ''),
-                    (string) ($display['statut'] ?? ''),
-                    (string) ($display['localisation'] ?? ''),
-                    (string) ($display['responsable'] ?? ''),
-                    (string) ($display['date_recherche'] ?? ''),
-                    (string) ($display['resultat'] ?? ''),
+                    (string) ($display['priorite'] ?? ''),
                     implode(' | ', $row['errors']),
                 ]), ';');
             }

@@ -14,13 +14,13 @@ final class FormulaireDemoSeeder extends Seeder
 {
     private const FORMULAIRES = [
         [
-            'numero_auto' => 'FM-2014-000001', 'type' => 'marque', 'annee' => 2014,
+            'numero_auto' => 'FM-2014-000001', 'type' => 'MAQ', 'annee' => 2014,
             'numero_formulaire' => 'M-2014-005421', 'statut' => 'introuvable',
             'localisation' => 'Archives centrales', 'responsable' => 'demo.documentation@oipi.test',
             'date_recherche' => '2026-07-15', 'date_resolution' => null, 'resultat' => 'En cours',
         ],
         [
-            'numero_auto' => 'FM-2017-000001', 'type' => 'brevet', 'annee' => 2017,
+            'numero_auto' => 'FM-2017-000001', 'type' => 'BRV', 'annee' => 2017,
             'numero_formulaire' => 'B-2017-000154', 'statut' => 'retrouve',
             'localisation' => 'Direction Technique', 'responsable' => 'demo.chef.projet@oipi.test',
             'date_recherche' => '2026-07-18', 'date_resolution' => '2026-07-18 00:00:00', 'resultat' => 'Saisi',

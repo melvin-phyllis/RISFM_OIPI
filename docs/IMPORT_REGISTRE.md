@@ -1,6 +1,6 @@
 # Import du registre CSV et Excel
 
-Derniere mise a jour : 29 juillet 2026
+Derniere mise a jour : 30 septembre 2026
 
 ## Acces
 
@@ -13,28 +13,25 @@ l'apercu (30 minutes).
 
 ## Colonnes
 
-Les trois colonnes obligatoires sont :
+Le modele reprend exactement la saisie manuelle d'un formulaire :
 
-- `Type de titre` : code ou libelle actif ;
-- `Annee` : quatre chiffres, entre 2006 et l'annee courante ;
-- `Numero du formulaire` : numero officiel, limite a 60 caracteres.
+| Colonne | Obligatoire | Valeurs |
+|---|---|---|
+| `Type de titre` | oui | code ou libelle actif |
+| `Annee` | oui | quatre chiffres, entre 2006 et l'annee courante |
+| `Numero du formulaire` | oui | numero officiel, 60 caracteres maximum |
+| `Priorite` | non | `Basse`, `Normale`, `Haute` ou `Urgente` ; vide = `Normale` |
 
-Colonnes facultatives :
+Types de titres livres (nomenclature OIPI) : `BRV` Brevet, `DMI` Dessin &
+Modele Industriel, `IG` Indication Geographique, `MAQ` Marque, `MC` Marque
+Collective, `MU` Modele d'Utilite, `NC` Nom Commercial, `OV` Obtention
+Vegetale. Le code est la saisie la plus sure ; le libelle est aussi accepte.
 
-- `Statut` : code ou libelle du workflow ; vide signifie `Introuvable` ;
-- `Localisation recherchee` ;
-- `Responsable` : identifiant OIPI-RISFM, e-mail ou nom complet non ambigu ;
-- `Date de recherche` ;
-- `Resultat` ;
-- `Date du depot` ;
-- `Deposant` ;
-- `Mandataire` ;
-- `Observations` ;
-- `Priorite` : `Basse`, `Normale`, `Haute` ou `Urgente`.
-
-La colonne `N°` d'un export RISFM est reconnue et ignoree. Pour un dossier
-ayant deja fait l'objet d'une recherche, la localisation, le responsable, la
-date et le resultat sont tous obligatoires.
+La colonne `N°` est reconnue et ignoree. Les colonnes de l'ancien modele de
+reprise historique (`Statut`, `Localisation recherchee`, `Responsable`,
+`Date de recherche`, `Resultat`, `Date du depot`, `Deposant`, `Mandataire`,
+`Observations`) sont refusees avec un message qui les nomme : aucune donnee
+n'est ignoree sans que l'utilisateur le sache.
 
 ## Formats et limites
 
@@ -58,11 +55,9 @@ date et le resultat sont tous obligatoires.
 6. Toutes les lignes sont ecrites dans une seule transaction. Une collision
    concurrente ou un echec d'audit annule l'import complet.
 
-Chaque formulaire recoit une reference automatique `FM-AAAA-NNNNNN`. Une
-recherche historique complete cree egalement la mission, l'instantane
-d'historique et, pour un dossier retrouve/numerise/saisi, les jalons de
-finalisation necessaires. Aucun e-mail d'affectation n'est envoye pendant cette
-reprise historique.
+Chaque formulaire recoit une reference automatique `FM-AAAA-NNNNNN` et est
+cree au statut `Introuvable`, sans mission, exactement comme une saisie
+manuelle. Les affectations se font ensuite depuis la fiche du formulaire.
 
 ## Recette
 
@@ -72,8 +67,9 @@ Le test non destructif peut etre execute seul :
 php scripts/test_formulaire_import.php
 ```
 
-Il teste CSV et XLSX, les lignes invalides, l'absence d'import partiel, la
-reconstruction de l'historique, la journalisation et les deux modeles. Ses
-ecritures sont placees dans une transaction annulee a la fin du test.
+Il teste CSV et XLSX, les lignes invalides, le refus des anciennes colonnes,
+l'absence d'import partiel, le statut initial, la journalisation et les deux
+modeles. Ses ecritures sont placees dans une transaction annulee a la fin du
+test.
 
-La recette a ete reexecutee avec succes le 29 juillet 2026.
+La recette a ete reexecutee avec succes le 30 septembre 2026.

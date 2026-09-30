@@ -3,17 +3,18 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-/** Types de titres de propriete intellectuelle geres par l'OIPI. */
+/** Types de titres de propriete intellectuelle geres par l'OIPI (nomenclature officielle). */
 final class TypeTitreSeeder extends Seeder
 {
     private const TYPES = [
-        ['code' => 'marque', 'libelle' => 'Marque', 'ordre' => 1],
-        ['code' => 'nom_commercial', 'libelle' => 'Noms commerciaux', 'ordre' => 2],
-        ['code' => 'dmi', 'libelle' => 'Dessins et Modeles Industriels', 'ordre' => 3],
-        ['code' => 'brevet', 'libelle' => 'Brevet', 'ordre' => 4],
-        ['code' => 'modele_utilite', 'libelle' => 'Modeles d\'utilite', 'ordre' => 5],
-        ['code' => 'obtention_vegetale', 'libelle' => 'Obtentions vegetales', 'ordre' => 6],
-        ['code' => 'autre', 'libelle' => 'Autres', 'ordre' => 7],
+        ['code' => 'BRV', 'libelle' => 'Brevet', 'ordre' => 1],
+        ['code' => 'DMI', 'libelle' => 'Dessin & Modèle Industriel', 'ordre' => 2],
+        ['code' => 'IG', 'libelle' => 'Indication Géographique', 'ordre' => 3],
+        ['code' => 'MAQ', 'libelle' => 'Marque', 'ordre' => 4],
+        ['code' => 'MC', 'libelle' => 'Marque Collective', 'ordre' => 5],
+        ['code' => 'MU', 'libelle' => 'Modèle d\'Utilité', 'ordre' => 6],
+        ['code' => 'NC', 'libelle' => 'Nom Commercial', 'ordre' => 7],
+        ['code' => 'OV', 'libelle' => 'Obtention Végétale', 'ordre' => 8],
     ];
 
     public function run(): string

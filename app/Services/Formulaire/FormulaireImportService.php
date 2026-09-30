@@ -6,15 +6,9 @@ namespace App\Services\Formulaire;
 use App\Core\Database;
 use App\Core\Logger;
 use App\Core\Security;
-use App\Repositories\Formulaire\FinalisationFormulaireRepository;
 use App\Repositories\Formulaire\FormulaireRepository;
-use App\Repositories\Formulaire\RechercheFormulaireRepository;
-use App\Repositories\Mission\MissionRechercheRepository;
-use App\Repositories\Referentiel\LocalisationRepository;
 use App\Repositories\Referentiel\StatutRepository;
 use App\Repositories\Referentiel\TypeTitreRepository;
-use App\Repositories\Utilisateur\UserRepository;
-use DateTimeImmutable;
 use DateTimeInterface;
 use DomainException;
 use finfo;
@@ -23,19 +17,19 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
-use PhpOffice\PhpSpreadsheet\Shared\Date as SpreadsheetDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use RuntimeException;
-use Throwable;
 use ZipArchive;
 
 /**
- * Analyse et importe un registre historique CSV/XLSX.
+ * Analyse et importe en masse des formulaires manquants (CSV/XLSX).
  *
- * Une analyse sans erreur est obligatoire avant l'ecriture. L'import est
- * atomique : une collision ou une erreur d'audit annule toutes les lignes.
+ * Chaque ligne cree le meme dossier qu'une saisie manuelle : type, annee,
+ * numero et priorite, au statut Introuvable et sans mission. Une analyse sans
+ * erreur est obligatoire avant l'ecriture. L'import est atomique : une
+ * collision ou une erreur d'audit annule toutes les lignes.
  */
 class FormulaireImportService
 {
@@ -47,15 +41,6 @@ class FormulaireImportService
         'Type de titre',
         'Annee',
         'Numero du formulaire',
-        'Statut',
-        'Localisation recherchee',
-        'Responsable',
-        'Date de recherche',
-        'Resultat',
-        'Date du depot',
-        'Deposant',
-        'Mandataire',
-        'Observations',
         'Priorite',
     ];
 
@@ -71,31 +56,34 @@ class FormulaireImportService
         'annee' => 'annee',
         'numero_formulaire' => 'numero_formulaire',
         'numero_du_formulaire' => 'numero_formulaire',
-        'statut' => 'statut',
-        'localisation' => 'localisation',
-        'localisation_recherchee' => 'localisation',
-        'responsable' => 'responsable',
-        'date_recherche' => 'date_recherche',
-        'date_de_recherche' => 'date_recherche',
-        'resultat' => 'resultat',
-        'date_depot' => 'date_depot',
-        'date_du_depot' => 'date_depot',
-        'deposant' => 'deposant',
-        'mandataire' => 'mandataire',
-        'observations' => 'observations',
-        'observation' => 'observations',
         'priorite' => 'priorite',
+    ];
+
+    /**
+     * Colonnes de l'ancien modele de reprise historique. Elles sont refusees
+     * plutot qu'ignorees pour qu'aucune donnee ne soit perdue sans le savoir.
+     */
+    private const RETIRED_HEADERS = [
+        'statut' => 'Statut',
+        'localisation' => 'Localisation recherchee',
+        'localisation_recherchee' => 'Localisation recherchee',
+        'responsable' => 'Responsable',
+        'date_recherche' => 'Date de recherche',
+        'date_de_recherche' => 'Date de recherche',
+        'resultat' => 'Resultat',
+        'date_depot' => 'Date du depot',
+        'date_du_depot' => 'Date du depot',
+        'deposant' => 'Deposant',
+        'mandataire' => 'Mandataire',
+        'observations' => 'Observations',
+        'observation' => 'Observations',
     ];
 
     private const DISPLAY_COLUMNS = [
         'type_titre' => 'Type de titre',
         'annee' => 'Année',
         'numero_formulaire' => 'Numéro du formulaire',
-        'statut' => 'Statut',
-        'localisation' => 'Localisation recherchée',
-        'responsable' => 'Responsable',
-        'date_recherche' => 'Date de recherche',
-        'resultat' => 'Résultat',
+        'priorite' => 'Priorité',
     ];
 
     /**
@@ -253,17 +241,10 @@ class FormulaireImportService
             );
         }
 
-        $db = Database::getConnection();
-        $startedTransaction = !$db->inTransaction();
-        $savepoint = 'risfm_import_batch';
-        $references = [];
-        try {
-            if ($startedTransaction) {
-                $db->beginTransaction();
-            } else {
-                $db->exec("SAVEPOINT {$savepoint}");
-            }
-
+        // Tout ou rien : dans une transaction deja ouverte, l'import pose un
+        // point de reprise et n'annule que son propre travail en cas d'echec.
+        $references = Database::transaction(function () use ($analysis, $actorId): array {
+            $references = [];
             foreach ($analysis['rows'] as $row) {
                 $data = $row['data'];
                 if (!is_array($data)) {
@@ -281,40 +262,13 @@ class FormulaireImportService
                 }
 
                 $record = $data;
-                $statusCode = (string) $record['statut_code'];
-                unset($record['statut_code'], $record['has_research']);
                 $record['cree_par'] = $actorId;
-                if (in_array($statusCode, ['retrouve', 'numerise', 'saisi', 'archive'], true)) {
-                    $record['date_resolution'] = $record['date_recherche'] . ' 00:00:00';
-                }
 
                 $created = $formRepository->repo_insertWithGeneratedNumero($record);
                 $formId = (int) $created['id'];
                 $reference = (string) $created['numero_auto'];
                 $references[] = $reference;
 
-                $missionId = $this->createImportedMission($formId, $data, $actorId);
-                if (!empty($data['has_research'])) {
-                    $historyId = (new RechercheFormulaireRepository())->repo_enregistrer(
-                        $formId,
-                        [
-                            'mission_id' => $missionId,
-                            'localisation_id' => $data['localisation_id'],
-                            'responsable_id' => $data['responsable_id'],
-                            'statut_id' => $data['statut_id'],
-                            'date_recherche' => $data['date_recherche'],
-                            'resultat' => $data['resultat'],
-                            'observations' => $data['observations'],
-                        ],
-                        $actorId,
-                        'reprise'
-                    );
-                    if ($missionId !== null) {
-                        (new MissionRechercheRepository())->repo_lierHistorique($missionId, $historyId);
-                    }
-                }
-
-                $this->createImportedFinalizations($formId, $data, $actorId);
                 if (!Logger::log(
                     $actorId,
                     'import',
@@ -329,6 +283,7 @@ class FormulaireImportService
                         'numero_formulaire' => (string) $data['numero_formulaire'],
                         'type_titre_id' => (int) $data['type_titre_id'],
                         'statut_id' => (int) $data['statut_id'],
+                        'priorite' => (string) $data['priorite'],
                         'source_ligne' => (int) $row['line'],
                     ]
                 )) {
@@ -349,20 +304,8 @@ class FormulaireImportService
                 throw new RuntimeException('L’import ne peut pas être validé sans son résumé d’audit.');
             }
 
-            if ($startedTransaction) {
-                $db->commit();
-            } else {
-                $db->exec("RELEASE SAVEPOINT {$savepoint}");
-            }
-        } catch (Throwable $e) {
-            if ($startedTransaction && $db->inTransaction()) {
-                $db->rollBack();
-            } elseif (!$startedTransaction && $db->inTransaction()) {
-                $db->exec("ROLLBACK TO SAVEPOINT {$savepoint}");
-                $db->exec("RELEASE SAVEPOINT {$savepoint}");
-            }
-            throw $e;
-        }
+            return $references;
+        });
 
         return ['imported' => count($references), 'references' => $references];
     }
@@ -409,10 +352,9 @@ class FormulaireImportService
             $instructions->fromArray([
                 ['IMPORT RISFM , CONSIGNES'],
                 ['Les colonnes Type de titre, Annee et Numero du formulaire sont obligatoires.'],
-                ['Statut vide = Introuvable. Utilisez un code ou le libelle affiche dans RISFM.'],
-                ['Si une recherche est renseignee, localisation, responsable, date et resultat sont obligatoires.'],
-                ['Responsable : utilisez de preference son identifiant OIPI-RISFM ou son e-mail.'],
-                ['Dates acceptees : jj/mm/aaaa ou aaaa-mm-jj. Les dates futures sont refusees.'],
+                ['Type de titre : code ou libelle actif affiche dans RISFM.'],
+                ['Priorite : Basse, Normale, Haute ou Urgente. Vide = Normale.'],
+                ['Chaque formulaire est cree au statut Introuvable ; les missions se creent ensuite depuis sa fiche.'],
                 ['L’import est atomique : une seule ligne invalide bloque tout le fichier.'],
                 ['Maximum : ' . self::MAX_ROWS . ' lignes et 10 Mo.'],
             ]);
@@ -509,8 +451,12 @@ class FormulaireImportService
     {
         foreach (array_slice($rows, 0, 10, true) as $offset => $row) {
             $mapping = [];
+            $retired = [];
             foreach ($row['values'] as $index => $value) {
                 $key = $this->normalizeKey($this->scalarString($value));
+                if (isset(self::RETIRED_HEADERS[$key])) {
+                    $retired[] = self::RETIRED_HEADERS[$key];
+                }
                 if ($key !== '' && isset(self::HEADER_ALIASES[$key])) {
                     $canonical = self::HEADER_ALIASES[$key];
                     if (in_array($canonical, $mapping, true)) {
@@ -520,6 +466,12 @@ class FormulaireImportService
                 }
             }
             if (array_diff(self::REQUIRED, array_values($mapping)) === []) {
+                if ($retired !== []) {
+                    throw new InvalidArgumentException(
+                        'Colonnes non prises en charge : ' . implode(', ', array_unique($retired))
+                        . '. Supprimez-les ou utilisez le modèle officiel (Type de titre, Année, Numéro du formulaire, Priorité).'
+                    );
+                }
                 return [(int) $offset, $mapping];
             }
         }
@@ -548,63 +500,35 @@ class FormulaireImportService
         $typeText = Security::cleanString($this->scalarString($raw['type_titre'] ?? ''));
         $yearText = Security::cleanString($this->scalarString($raw['annee'] ?? ''));
         $number = Security::cleanString($this->scalarString($raw['numero_formulaire'] ?? ''));
-        $statusText = Security::cleanString($this->scalarString($raw['statut'] ?? ''));
-        $locationText = Security::cleanString($this->scalarString($raw['localisation'] ?? ''));
-        $responsibleText = Security::cleanString($this->scalarString($raw['responsable'] ?? ''));
+        $priorityText = Security::cleanString($this->scalarString($raw['priorite'] ?? ''));
 
         $type = $this->resolveReference($typeText, $references['types'], 'Type de titre', $errors);
-        $status = $statusText === ''
-            ? $references['statuses'][$this->normalizeKey('introuvable')] ?? null
-            : $this->resolveReference($statusText, $references['statuses'], 'Statut', $errors);
-        $location = $locationText === ''
-            ? null
-            : $this->resolveReference($locationText, $references['locations'], 'Localisation', $errors);
-        $responsible = $responsibleText === ''
-            ? null
-            : $this->resolveReference($responsibleText, $references['users'], 'Responsable', $errors);
-
-        $depositDate = $this->normalizeDate($raw['date_depot'] ?? null, $extension, 'Date du dépôt', $errors);
-        $researchDate = $this->normalizeDate($raw['date_recherche'] ?? null, $extension, 'Date de recherche', $errors);
-        $priority = $this->normalizePriority($this->scalarString($raw['priorite'] ?? ''), $errors);
-        $result = Security::cleanString($this->scalarString($raw['resultat'] ?? ''));
-        $observations = Security::cleanString($this->scalarString($raw['observations'] ?? ''));
-        $depositor = Security::cleanString($this->scalarString($raw['deposant'] ?? ''));
-        $representative = Security::cleanString($this->scalarString($raw['mandataire'] ?? ''));
-
-        if (mb_strlen($observations) > 5000) {
-            $errors[] = 'Les observations ne doivent pas dépasser 5 000 caractères.';
+        $priority = $this->normalizePriority($priorityText, $errors);
+        $status = $references['initial_status'];
+        if ($status === null) {
+            $errors[] = 'Le statut initial Introuvable est absent ou inactif.';
         }
 
-        $statusCode = (string) ($status['code'] ?? '');
-        $hasResearch = $locationText !== '' || $responsibleText !== '' || $researchDate !== null
-            || $result !== '' || $observations !== '' || ($statusCode !== '' && $statusCode !== 'introuvable');
-        if ($statusCode !== '' && $statusCode !== 'introuvable' && !$hasResearch) {
-            $errors[] = 'Un statut autre qu’Introuvable exige les informations de recherche.';
-        }
-
+        // Meme dossier qu'une saisie manuelle : aucune recherche ni affectation.
         $data = [
             'type_titre_id' => isset($type['id']) ? (string) $type['id'] : '',
             'annee' => $yearText,
             'numero_formulaire' => $number,
-            'date_depot' => $depositDate,
-            'deposant' => $depositor,
-            'mandataire' => $representative,
             'statut_id' => isset($status['id']) ? (string) $status['id'] : '',
-            'statut_code' => $statusCode,
-            'localisation_id' => isset($location['id']) ? (string) $location['id'] : null,
-            'responsable_id' => isset($responsible['id']) ? (string) $responsible['id'] : null,
-            'date_recherche' => $researchDate,
-            'resultat' => $result,
-            'observations' => $observations,
+            'localisation_id' => null,
+            'responsable_id' => null,
+            'date_recherche' => null,
+            'resultat' => '',
+            'observations' => '',
+            'date_depot' => null,
+            'deposant' => '',
+            'mandataire' => '',
             'niveau_urgence' => 'Moyen',
             'priorite' => $priority,
-            'has_research' => $hasResearch,
         ];
 
         if ($errors === []) {
-            $validationData = $data;
-            unset($validationData['statut_code'], $validationData['has_research']);
-            $validationError = $validator->validateForm($validationData);
+            $validationError = $validator->validateForm($data);
             if ($validationError !== null) {
                 $errors[] = $validationError;
             }
@@ -614,19 +538,13 @@ class FormulaireImportService
             $data['type_titre_id'] = (int) $data['type_titre_id'];
             $data['annee'] = (int) $data['annee'];
             $data['statut_id'] = (int) $data['statut_id'];
-            $data['localisation_id'] = $data['localisation_id'] !== null ? (int) $data['localisation_id'] : null;
-            $data['responsable_id'] = $data['responsable_id'] !== null ? (int) $data['responsable_id'] : null;
         }
 
         $display = [
             'type_titre' => $typeText,
             'annee' => $yearText,
             'numero_formulaire' => $number,
-            'statut' => $statusText !== '' ? $statusText : 'Introuvable',
-            'localisation' => $locationText,
-            'responsable' => $responsibleText,
-            'date_recherche' => $researchDate ?? '',
-            'resultat' => $result,
+            'priorite' => $priorityText !== '' ? $priorityText : 'Normale',
         ];
         return [$errors === [] ? $data : null, $display, array_values(array_unique($errors))];
     }
@@ -637,23 +555,13 @@ class FormulaireImportService
         foreach ((new TypeTitreRepository())->repo_actifs() as $row) {
             $this->addReference($types, $row, [(string) $row['code'], (string) $row['libelle']]);
         }
-        $statuses = [];
+        $initialStatus = null;
         foreach ((new StatutRepository())->repo_actifs() as $row) {
-            $this->addReference($statuses, $row, [(string) $row['code'], (string) $row['libelle']]);
+            if ((string) $row['code'] === 'introuvable') {
+                $initialStatus = $row;
+            }
         }
-        $locations = [];
-        foreach ((new LocalisationRepository())->repo_actives() as $row) {
-            $this->addReference($locations, $row, [(string) $row['libelle']]);
-        }
-        $users = [];
-        foreach ((new UserRepository())->repo_activeUsers() as $row) {
-            $this->addReference($users, $row, [
-                (string) $row['identifiant'],
-                (string) $row['email'],
-                trim((string) $row['nom'] . ' ' . (string) $row['prenoms']),
-            ]);
-        }
-        return compact('types', 'statuses', 'locations', 'users');
+        return ['types' => $types, 'initial_status' => $initialStatus];
     }
 
     private function addReference(array &$map, array $row, array $keys): void
@@ -688,95 +596,6 @@ class FormulaireImportService
             return null;
         }
         return $row;
-    }
-
-    private function createImportedMission(int $formId, array $data, int $actorId): ?int
-    {
-        if (empty($data['has_research']) || empty($data['localisation_id']) || empty($data['responsable_id'])) {
-            return null;
-        }
-        $statusCode = (string) $data['statut_code'];
-        $active = $statusCode === 'en_recherche';
-        $resultCode = match ($statusCode) {
-            'retrouve', 'numerise', 'saisi', 'archive' => 'retrouve',
-            'a_verifier' => 'a_verifier',
-            default => 'non_retrouve',
-        };
-        $date = (string) $data['date_recherche'];
-
-        return (new MissionRechercheRepository())->repo_insert([
-            'formulaire_id' => $formId,
-            'cycle_suivi' => 1,
-            'localisation_id' => (int) $data['localisation_id'],
-            'responsable_id' => (int) $data['responsable_id'],
-            'affecte_par' => $actorId,
-            'cloture_par' => $active ? null : $actorId,
-            'etat' => $active ? 'en_cours' : 'terminee',
-            'resultat_code' => $active ? null : $resultCode,
-            'resultat' => $active ? null : ($data['resultat'] ?: null),
-            'observations' => $data['observations'] ?: null,
-            'priorite' => (string) $data['priorite'],
-            'date_affectation' => $date . ' 00:00:00',
-            'date_recherche' => $active ? null : $date,
-            'date_cloture' => $active ? null : $date . ' 00:00:00',
-        ]);
-    }
-
-    private function createImportedFinalizations(int $formId, array $data, int $actorId): void
-    {
-        $statusCode = (string) $data['statut_code'];
-        $steps = match ($statusCode) {
-            'retrouve' => ['retrouve'],
-            'numerise' => ['retrouve', 'numerise'],
-            'saisi', 'archive' => ['retrouve', 'numerise', 'saisi'],
-            default => [],
-        };
-        if ($steps === []) {
-            return;
-        }
-        $statusRepository = new StatutRepository();
-        $finalizationRepository = new FinalisationFormulaireRepository();
-        foreach ($steps as $step) {
-            $stepStatus = $statusRepository->repo_findByCode($step);
-            if (!$stepStatus) {
-                throw new RuntimeException("Le statut système {$step} est introuvable.");
-            }
-            $finalizationRepository->repo_enregistrer(
-                $formId,
-                $step,
-                (int) $stepStatus['id'],
-                $actorId,
-                (string) $data['date_recherche'],
-                'Jalon historique reconstitué lors de l’import du registre.'
-            );
-        }
-    }
-
-    private function normalizeDate(mixed $value, string $extension, string $label, array &$errors): ?string
-    {
-        if (($value === null || $value === '') && $value !== 0) {
-            return null;
-        }
-        if ($extension === 'xlsx' && is_numeric($value)) {
-            $serial = (float) $value;
-            if ($serial > 0 && $serial < 100000) {
-                try {
-                    return SpreadsheetDate::excelToDateTimeObject($serial)->format('Y-m-d');
-                } catch (Throwable) {
-                    // Le message normalise ci-dessous sera retourne.
-                }
-            }
-        }
-        $text = trim($this->scalarString($value));
-        foreach (['!Y-m-d', '!d/m/Y', '!d-m-Y', '!d.m.Y'] as $format) {
-            $date = DateTimeImmutable::createFromFormat($format, $text);
-            $dateErrors = DateTimeImmutable::getLastErrors();
-            if ($date && ($dateErrors === false || ($dateErrors['warning_count'] === 0 && $dateErrors['error_count'] === 0))) {
-                return $date->format('Y-m-d');
-            }
-        }
-        $errors[] = "{$label} invalide : utilisez jj/mm/aaaa ou aaaa-mm-jj.";
-        return null;
     }
 
     private function normalizePriority(string $value, array &$errors): string

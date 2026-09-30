@@ -20,17 +20,11 @@ require_once BASE_PATH . '/app/Core/helpers.php';
 
 $db = Database::getConnection();
 $type = $db->query('SELECT * FROM types_titres WHERE actif = 1 ORDER BY ordre, id LIMIT 1')->fetch();
-$location = $db->query('SELECT * FROM localisations WHERE actif = 1 ORDER BY id LIMIT 1')->fetch();
-$user = $db->query(
-    "SELECT * FROM utilisateurs
-     WHERE actif = 1 AND role IN ('administrateur','responsable','agent')
-     ORDER BY id LIMIT 1"
-)->fetch();
 $actorId = (int) ($db->query(
     "SELECT id FROM utilisateurs WHERE actif = 1 AND role = 'administrateur' ORDER BY id LIMIT 1"
 )->fetchColumn() ?: 0);
 
-if (!$type || !$location || !$user || $actorId < 1) {
+if (!$type || $actorId < 1) {
     fwrite(STDERR, "IMPORT ECHEC: referentiels ou administrateur manquants.\n");
     exit(1);
 }
@@ -50,30 +44,41 @@ $temp = static function (string $prefix) use (&$temporaryFiles): string {
     $temporaryFiles[] = $path;
     return $path;
 };
+$writeCsv = static function (array $header, array $rows) use ($temp): string {
+    $path = $temp('risfm_import_csv_');
+    $handle = fopen($path, 'wb');
+    fwrite($handle, "\xEF\xBB\xBF");
+    fputcsv($handle, $header, ';');
+    foreach ($rows as $row) {
+        fputcsv($handle, $row, ';');
+    }
+    fclose($handle);
+    return $path;
+};
+$allErrors = static fn (array $analysis): string => implode(' ', array_merge(...array_map(
+    static fn (array $row): array => $row['errors'],
+    $analysis['rows']
+)));
 $service = new FormulaireImportService();
 $suffix = strtoupper(bin2hex(random_bytes(4)));
 $minimalNumber = 'IMPORT-MIN-' . $suffix;
-$resolvedNumber = 'IMPORT-RET-' . $suffix;
+$urgentNumber = 'IMPORT-URG-' . $suffix;
 $badNumber = 'IMPORT-BAD-' . $suffix;
 
 try {
-    // CSV : encodage, separateur, ligne valide, referentiel invalide et
-    // blocage de tout import partiel.
-    $badCsv = $temp('risfm_import_bad_');
-    $handle = fopen($badCsv, 'wb');
-    fwrite($handle, "\xEF\xBB\xBF");
-    fputcsv($handle, FormulaireImportService::TEMPLATE_COLUMNS, ';');
-    fputcsv($handle, [
-        (string) $type['code'], date('Y'), $minimalNumber, '', '', '', '', '', '', '', '', '', 'Normale',
-    ], ';');
-    fputcsv($handle, [
-        'TYPE INCONNU', date('Y'), $badNumber, '', '', '', '', '', '', '', '', '', 'Normale',
-    ], ';');
-    fputcsv($handle, [
-        (string) $type['code'], date('Y'), '=2+2', '', '', '', '', '', '', '', '', '', 'Normale',
-    ], ';');
-    fclose($handle);
+    $assert(
+        FormulaireImportService::TEMPLATE_COLUMNS === ['Type de titre', 'Annee', 'Numero du formulaire', 'Priorite'],
+        'le modele doit se limiter aux quatre colonnes de la saisie manuelle'
+    );
 
+    // CSV : ligne valide, referentiel inconnu, formule, priorite invalide et
+    // blocage de tout import partiel.
+    $badCsv = $writeCsv(FormulaireImportService::TEMPLATE_COLUMNS, [
+        [(string) $type['code'], date('Y'), $minimalNumber, 'Normale'],
+        ['TYPE INCONNU', date('Y'), $badNumber, 'Normale'],
+        [(string) $type['code'], date('Y'), '=2+2', 'Normale'],
+        [(string) $type['code'], date('Y'), $badNumber . '-P', 'Extreme'],
+    ]);
     $inspection = $service->srv_inspectFile([
         'error' => UPLOAD_ERR_OK,
         'tmp_name' => $badCsv,
@@ -82,21 +87,13 @@ try {
     ]);
     $badAnalysis = $service->srv_analyse($badCsv, $inspection['extension']);
     $assert(
-        $badAnalysis['total'] === 3
+        $badAnalysis['total'] === 4
             && $badAnalysis['valid_count'] === 1
-            && $badAnalysis['error_count'] === 2,
-        'le CSV doit distinguer les lignes valides, les referentiels inconnus et les formules'
+            && $badAnalysis['error_count'] === 3,
+        'le CSV doit distinguer les lignes valides des referentiels inconnus, formules et priorites invalides'
     );
-    $assert(
-        str_contains(
-            implode(' ', array_merge(...array_map(
-                static fn (array $row): array => $row['errors'],
-                $badAnalysis['rows']
-            ))),
-            'formules Excel'
-        ),
-        'les formules doivent etre refusees avant l import'
-    );
+    $assert(str_contains($allErrors($badAnalysis), 'formules Excel'), 'les formules doivent etre refusees avant l import');
+    $assert(str_contains($allErrors($badAnalysis), 'Priorité invalide'), 'une priorite hors liste doit etre refusee');
     $blocked = false;
     try {
         $service->srv_import($badCsv, 'csv', $actorId);
@@ -109,33 +106,36 @@ try {
         'le fichier invalide ne doit creer aucun formulaire'
     );
 
-    // XLSX : en-tete en ligne 4 comme dans l'export RISFM, ligne minimale et
-    // reprise d'un dossier retrouve avec mission, historique et finalisation.
+    // Les colonnes de l'ancien modele de reprise sont refusees, pas ignorees.
+    $legacyCsv = $writeCsv(
+        ['Type de titre', 'Annee', 'Numero du formulaire', 'Statut', 'Deposant', 'Priorite'],
+        [[(string) $type['code'], date('Y'), $minimalNumber, 'retrouve', 'Ancien deposant', 'Normale']]
+    );
+    try {
+        $service->srv_analyse($legacyCsv, 'csv');
+        $assert(false, 'un fichier avec les anciennes colonnes doit etre refuse');
+    } catch (InvalidArgumentException $e) {
+        $assert(
+            str_contains($e->getMessage(), 'Statut') && str_contains($e->getMessage(), 'Deposant'),
+            'le refus doit nommer les colonnes non prises en charge'
+        );
+    }
+
+    // XLSX : en-tete en ligne 4, libelle du type, priorite vide et urgente.
     $xlsxPath = $temp('risfm_import_ok_');
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
-    $sheet->setCellValue('A1', 'OIPI , Registre historique');
+    $sheet->setCellValue('A1', 'OIPI , Formulaires manquants');
     foreach (FormulaireImportService::TEMPLATE_COLUMNS as $column => $label) {
         $sheet->setCellValueExplicitByColumnAndRow($column + 1, 4, $label, DataType::TYPE_STRING);
     }
-    $minimalRow = [
-        (string) $type['libelle'], date('Y'), $minimalNumber, 'Introuvable',
-        '', '', '', '', '', 'Import minimal', '', '', 'Normale',
+    $rows = [
+        [(string) $type['libelle'], date('Y'), $minimalNumber, ''],
+        [(string) $type['code'], date('Y'), $urgentNumber, 'urgente'],
     ];
-    $resolvedRow = [
-        (string) $type['code'], date('Y'), $resolvedNumber, 'retrouve',
-        (string) $location['libelle'], (string) $user['identifiant'], date('d/m/Y'),
-        'Formulaire retrouvé pendant la reprise historique', '', 'Déposant importé',
-        '', 'Import de recette', 'Haute',
-    ];
-    foreach ([$minimalRow, $resolvedRow] as $rowOffset => $values) {
+    foreach ($rows as $rowOffset => $values) {
         foreach ($values as $column => $value) {
-            $sheet->setCellValueExplicitByColumnAndRow(
-                $column + 1,
-                5 + $rowOffset,
-                (string) $value,
-                DataType::TYPE_STRING
-            );
+            $sheet->setCellValueExplicitByColumnAndRow($column + 1, 5 + $rowOffset, (string) $value, DataType::TYPE_STRING);
         }
     }
     (new Xlsx($spreadsheet))->save($xlsxPath);
@@ -149,39 +149,38 @@ try {
     ]);
     $analysis = $service->srv_analyse($xlsxPath, $xlsxInspection['extension']);
     $assert(
-        $analysis['header_row'] === 4
-            && $analysis['total'] === 2
-            && $analysis['error_count'] === 0,
-        'le XLSX doit reconnaitre l en-tete exporte et valider les deux lignes'
+        $analysis['header_row'] === 4 && $analysis['total'] === 2 && $analysis['error_count'] === 0,
+        'le XLSX doit reconnaitre l en-tete et valider les deux lignes'
     );
 
     $db->beginTransaction();
     try {
         $result = $service->srv_import($xlsxPath, 'xlsx', $actorId);
-        $resolvedId = (int) $db->query(
-            "SELECT id FROM formulaires_manquants
-             WHERE numero_formulaire = " . $db->quote($resolvedNumber) . ' LIMIT 1'
-        )->fetchColumn();
         $assert($result['imported'] === 2, 'les deux lignes valides doivent etre importees atomiquement');
+        $imported = $db->query(
+            "SELECT f.id, f.numero_formulaire, f.priorite, s.code AS statut, f.localisation_id, f.responsable_id
+             FROM formulaires_manquants f JOIN statuts s ON s.id = f.statut_id
+             WHERE f.numero_formulaire IN (" . $db->quote($minimalNumber) . ', ' . $db->quote($urgentNumber) . ')'
+        )->fetchAll();
+        $byNumber = array_column($imported, null, 'numero_formulaire');
+        $assert(count($imported) === 2, 'les deux dossiers importes doivent exister dans la transaction');
         $assert(
-            (new FormulaireRepository())->repo_count(
-                'numero_formulaire IN (:minimal, :resolved)',
-                ['minimal' => $minimalNumber, 'resolved' => $resolvedNumber]
-            ) === 2,
-            'les deux dossiers importes doivent exister dans la transaction'
+            ($byNumber[$minimalNumber]['priorite'] ?? null) === 'Normale'
+                && ($byNumber[$urgentNumber]['priorite'] ?? null) === 'Urgente',
+            'priorite vide = Normale, priorite reconnue sans tenir compte de la casse'
+        );
+        $ids = implode(',', array_map('intval', array_column($imported, 'id'))) ?: '0';
+        $assert(
+            array_unique(array_column($imported, 'statut')) === ['introuvable']
+                && array_filter(array_column($imported, 'localisation_id')) === []
+                && array_filter(array_column($imported, 'responsable_id')) === [],
+            'un dossier importe est cree comme une saisie manuelle : Introuvable, sans localisation ni responsable'
         );
         $assert(
-            $resolvedId > 0
-                && (int) $db->query(
-                    'SELECT COUNT(*) FROM missions_recherche WHERE formulaire_id = ' . $resolvedId
-                )->fetchColumn() === 1
-                && (int) $db->query(
-                    'SELECT COUNT(*) FROM recherches_formulaire WHERE formulaire_id = ' . $resolvedId
-                )->fetchColumn() === 1
-                && (int) $db->query(
-                    'SELECT COUNT(*) FROM finalisations_formulaire WHERE formulaire_id = ' . $resolvedId
-                )->fetchColumn() === 1,
-            'la reprise Retrouve doit reconstituer mission, historique et jalon de finalisation'
+            (int) $db->query("SELECT COUNT(*) FROM missions_recherche WHERE formulaire_id IN ({$ids})")->fetchColumn() === 0
+                && (int) $db->query("SELECT COUNT(*) FROM recherches_formulaire WHERE formulaire_id IN ({$ids})")->fetchColumn() === 0
+                && (int) $db->query("SELECT COUNT(*) FROM finalisations_formulaire WHERE formulaire_id IN ({$ids})")->fetchColumn() === 0,
+            'l import ne cree ni mission, ni historique, ni finalisation'
         );
         $assert(
             (int) $db->query(
@@ -221,4 +220,4 @@ if ($failures !== []) {
     exit(1);
 }
 
-echo "IMPORT OK: CSV/XLSX, aperçu, atomicité, doublons, historique et modèles vérifiés.\n";
+echo "IMPORT OK: CSV/XLSX, quatre colonnes, anciennes colonnes refusees, atomicite, statut initial et modeles verifies.\n";

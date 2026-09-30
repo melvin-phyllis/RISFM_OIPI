@@ -31,4 +31,5 @@ return [
     ['name' => '20260804_20_login_rate_limit_ip', 'file' => '20260804_login_rate_limit_ip.sql'],
     ['name' => '20260805_21_palette_oipi_verte', 'file' => '20260805_palette_oipi_verte.sql'],
     ['name' => '20260930_22_demandes_reinitialisation', 'file' => '20260930_demandes_reinitialisation.sql'],
+    ['name' => '20260930_23_types_titres_officiels', 'file' => '20260930_types_titres_officiels.sql'],
 ];
