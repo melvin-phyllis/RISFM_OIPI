@@ -10,6 +10,7 @@ use App\Dto\Formulaire\UpdateFormulaireDTO;
 use App\Repositories\Formulaire\FormulaireRepository;
 use App\Repositories\Referentiel\StatutRepository;
 use App\Repositories\Utilisateur\UserRepository;
+use App\Services\Mission\MissionRechercheService;
 use DomainException;
 use RuntimeException;
 
@@ -81,6 +82,25 @@ final class FormulaireService
             )) {
                 throw new RuntimeException('La creation ne peut pas etre validee sans sa trace d’audit.');
             }
+            return $created;
+        });
+    }
+
+    /**
+     * Enregistre un formulaire deja retrouve : creation puis declaration de
+     * decouverte, dans une seule transaction (tout ou rien).
+     *
+     * @param array $dataCreation donnees de CreateFormulaireFormRequest
+     * @param array $dataDeclaration donnees de DeclarerRetrouveFormRequest
+     * @param bool $valide true : Retrouve ; false : A verifier
+     * @return array{id:int, numero_auto:string, missions_annulees:array}
+     */
+    public function srv_creerRetrouve(array $dataCreation, array $dataDeclaration, int $acteurId, bool $valide): array
+    {
+        return Database::transaction(function () use ($dataCreation, $dataDeclaration, $acteurId, $valide): array {
+            $created = $this->srv_creer($dataCreation, $acteurId);
+            $created['missions_annulees'] = (new MissionRechercheService())
+                ->srv_declarerRetrouve((int) $created['id'], $dataDeclaration, $acteurId, $valide);
             return $created;
         });
     }

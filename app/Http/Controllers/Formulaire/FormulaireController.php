@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Permission;
 use App\Http\Requests\Formulaire\CreateFormulaireFormRequest;
 use App\Http\Requests\Formulaire\UpdateFormulaireFormRequest;
+use App\Http\Requests\Mission\DeclarerRetrouveFormRequest;
 use App\Repositories\Administration\ActiviteRepository;
 use App\Repositories\Formulaire\FinalisationFormulaireRepository;
 use App\Repositories\Formulaire\FormulaireRepository;
@@ -21,6 +22,7 @@ use App\Repositories\Referentiel\TypeTitreRepository;
 use App\Repositories\Utilisateur\UserRepository;
 use App\Services\Formulaire\FormulaireHistoriqueBuilder;
 use App\Services\Formulaire\FormulaireService;
+use App\Services\Mission\MissionRechercheService;
 use DomainException;
 use PDOException;
 use RuntimeException;
@@ -97,6 +99,7 @@ class FormulaireController extends Controller
             'formulaire' => null,
             'initialStatus' => $initialStatus,
             'types' => (new TypeTitreRepository())->repo_actifs(),
+            'localisations' => (new LocalisationRepository())->repo_actives(),
         ]);
     }
 
@@ -105,9 +108,19 @@ class FormulaireController extends Controller
         Auth::requireLogin();
         Permission::requireOrFail('formulaires.create');
         $data = $this->validateRequest(CreateFormulaireFormRequest::class, 'formulaires/ajouter');
+        $role = (string) Auth::role();
+        $dejaRetrouve = (string) $this->input('deja_retrouve', '') === '1';
+        $valide = Permission::has($role, 'formulaires.declare_found_validated');
+        $declaration = [];
+        if ($dejaRetrouve) {
+            Permission::requireOrFail('formulaires.declare_found');
+            $declaration = $this->validateRequest(DeclarerRetrouveFormRequest::class, 'formulaires/ajouter');
+        }
 
         try {
-            $created = (new FormulaireService())->srv_creer($data, (int) Auth::id());
+            $created = $dejaRetrouve
+                ? (new FormulaireService())->srv_creerRetrouve($data, $declaration, (int) Auth::id(), $valide)
+                : (new FormulaireService())->srv_creer($data, (int) Auth::id());
         } catch (DomainException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('formulaires/ajouter');
@@ -124,7 +137,20 @@ class FormulaireController extends Controller
             return;
         }
 
-        setFlash('success', "Formulaire enregistre sous la reference {$created['numero_auto']}.");
+        if ($dejaRetrouve) {
+            (new MissionRechercheService())->srv_notifierDeclaration(
+                (int) $created['id'],
+                (string) $created['numero_auto'],
+                $valide,
+                $created['missions_annulees'] ?? [],
+                (int) Auth::id()
+            );
+            setFlash('success', $valide
+                ? "Formulaire {$created['numero_auto']} enregistre comme retrouve."
+                : "Formulaire {$created['numero_auto']} enregistre et signale retrouve : un responsable doit confirmer.");
+        } else {
+            setFlash('success', "Formulaire enregistre sous la reference {$created['numero_auto']}.");
+        }
         $this->redirect($this->creationRedirectTarget($created['id']));
     }
 
@@ -148,6 +174,9 @@ class FormulaireController extends Controller
 
         $canEditMetadata = $this->canEditMetadata($formulaire);
         $canAssign = $this->canAssignResearch($formulaire);
+        $canDeclareFound = (int) ($formulaire['est_archive'] ?? 0) === 0
+            && !in_array((string) ($formulaire['statut_code'] ?? ''), ['retrouve', 'numerise', 'saisi', 'archive'], true)
+            && Permission::has((string) Auth::role(), 'formulaires.declare_found');
         $missions = (new MissionRechercheRepository())->repo_pourFormulaire((int) $id);
         $hasActiveAssignment = false;
         $canRecordResult = false;
@@ -259,6 +288,8 @@ class FormulaireController extends Controller
             'canAttach' => $canAttach,
             'canFinalize' => $canFinalize,
             'canReopen' => $canReopen,
+            'canDeclareFound' => $canDeclareFound,
+            'canValidateFound' => Permission::has((string) Auth::role(), 'formulaires.declare_found_validated'),
             'nextFinalizationStep' => $nextFinalizationStep,
             'hasActiveAssignment' => $hasActiveAssignment,
             'researchOld' => $this->pullResearchInput(),

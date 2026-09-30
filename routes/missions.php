@@ -14,5 +14,6 @@ return [
     ['POST', '/missions-recherche/annuler/{id}',                MissionRechercheController::class, 'ctrl_cancel'],
     ['POST', '/missions-recherche/reaffecter/{id}',             MissionRechercheController::class, 'ctrl_reassign'],
     ['POST', '/missions-recherche/resultat/{id}',               MissionRechercheController::class, 'ctrl_recordResult'],
+    ['POST', '/formulaires/declarer-retrouve/{id}',             MissionRechercheController::class, 'ctrl_declareFound'],
     ['POST', '/formulaires/recherche/ajouter/{id}',             MissionRechercheController::class, 'ctrl_recordLegacyResult'],
 ];

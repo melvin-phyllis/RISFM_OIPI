@@ -244,8 +244,17 @@ $__resolutionRate = pct($__found, $__total);
                         </div>
                     </div>
 
+                    <?php if (Permission::has($__role, 'formulaires.declare_found')): ?>
+                    <?php
+                    $__retrouvePrefix = 'modal_retrouve';
+                    $__retrouveToggle = true;
+                    $__retrouveValide = Permission::has($__role, 'formulaires.declare_found_validated');
+                    require __DIR__ . '/partials/declaration_retrouve.php';
+                    ?>
+                    <?php endif; ?>
+
                     <div class="row mb-3">
-                        <div class="col-md-6 mb-2 mb-md-0">
+                        <div class="col-md-6 mb-2 mb-md-0 js-retrouve-hide">
                             <div class="border rounded bg-light h-100 p-3">
                                 <small class="text-muted d-block">Statut initial</small>
                                 <span class="badge badge-<?= e((string) ($initialStatus['couleur'] ?? 'danger')) ?> mt-1">
@@ -364,5 +373,6 @@ $__resolutionRate = pct($__found, $__total);
 $__extra_js = '<script>
 window.RISFM_FILTERS_DEFAULT = {};
 </script>
-<script src="' . asset('js/formulaires.js') . '"></script>';
+<script src="' . asset('js/formulaires.js') . '"></script>
+<script src="' . asset('js/formulaire-retrouve.js') . '"></script>';
 ?>

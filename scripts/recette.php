@@ -165,6 +165,7 @@ try {
         ['P7 , etat final des identifiants', 'test_p7_state.php', 60],
         ['P8 , resilience MySQL', 'test_p8_resilience.php', 60],
         ['Transactions et points de reprise', 'test_database_transactions.php', 30],
+        ['Declaration directe d un formulaire retrouve', 'test_declaration_retrouve.php', 60],
         ['Securite , limitation des connexions', 'test_login_rate_limiter.php', 60],
         ['Securite , limitation du mot de passe oublie', 'test_password_reset_rate_limit.php', 60],
         ['P9 , reinitialisation securisee', 'test_p9_password_reset.php', 60],

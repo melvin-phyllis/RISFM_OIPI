@@ -7,6 +7,7 @@ use App\Core\Database;
 use App\Core\Logger;
 use App\Dto\Mission\AffecterMissionDTO;
 use App\Dto\Mission\AnnulerMissionDTO;
+use App\Dto\Mission\DeclarerRetrouveDTO;
 use App\Dto\Mission\EnregistrerResultatMissionDTO;
 use App\Dto\Mission\ReaffecterMissionDTO;
 use App\Exceptions\ConfirmationRequiseException;
@@ -14,8 +15,10 @@ use App\Repositories\Formulaire\FinalisationFormulaireRepository;
 use App\Repositories\Formulaire\FormulaireRepository;
 use App\Repositories\Formulaire\RechercheFormulaireRepository;
 use App\Repositories\Mission\MissionRechercheRepository;
+use App\Repositories\Notification\NotificationRepository;
 use App\Repositories\Referentiel\StatutRepository;
 use App\Repositories\Utilisateur\UserRepository;
+use App\Core\Permission;
 use App\Services\Formulaire\FormulaireMetierValidator;
 use DomainException;
 use RuntimeException;
@@ -157,6 +160,134 @@ final class MissionRechercheService
             $dto->observations,
             $acteurId
         );
+    }
+
+    /**
+     * Declare un formulaire retrouve sans mission prealable (decouverte sur
+     * place). Une mission au nom du declarant est creee puis cloturee comme une
+     * recherche ordinaire : historique, finalisation et statistiques restent
+     * complets.
+     *
+     * @param array $dataValidated donnees de DeclarerRetrouveFormRequest
+     * @param bool $valide true : Retrouve ; false : A verifier, a confirmer par un responsable
+     * @return array autres missions cloturees automatiquement, a prevenir
+     * @throws DomainException refus metier
+     */
+    public function srv_declarerRetrouve(int $formulaireId, array $dataValidated, int $acteurId, bool $valide): array
+    {
+        $dto = DeclarerRetrouveDTO::fromArray($dataValidated);
+        $resultatCode = $valide ? 'retrouve' : 'a_verifier';
+        $statut = (new StatutRepository())->repo_findByCode($resultatCode);
+        if (!$statut) {
+            throw new DomainException('Le statut correspondant a la declaration n’est pas configure.');
+        }
+        $resultat = $valide ? 'Retrouve (declaration directe)' : 'Signale retrouve, a verifier par un responsable';
+        if ($dto->precision !== '') {
+            $resultat = mb_substr($resultat . ' : ' . $dto->precision, 0, 255);
+        }
+        $erreur = (new FormulaireMetierValidator())->validateResearch([
+            'localisation_id' => (string) $dto->localisation_id,
+            'responsable_id' => (string) $acteurId,
+            'statut_id' => (string) $statut['id'],
+            'date_recherche' => $dto->date,
+            'resultat' => $resultat,
+            'observations' => '',
+        ], null, $statut);
+        if ($erreur !== null) {
+            throw new DomainException($erreur);
+        }
+
+        return Database::transaction(function () use ($formulaireId, $dto, $acteurId, $resultatCode, $statut, $resultat): array {
+            $formulaire = (new FormulaireRepository())->repo_verrouiller($formulaireId);
+            if (!$formulaire || (int) $formulaire['est_archive'] === 1) {
+                throw new DomainException('Le formulaire est introuvable ou archive.');
+            }
+            if ($formulaire['statut_resolu'] === 1) {
+                throw new DomainException('Ce formulaire est deja retrouve.');
+            }
+            $this->responsableEligible($acteurId, 'Votre compte ne peut pas declarer une recherche.');
+
+            // Une mission deja active du declarant sur ce lieu est reprise :
+            // une seule mission active par formulaire, lieu et responsable.
+            $missionRepository = new MissionRechercheRepository();
+            $missionId = null;
+            foreach ($missionRepository->repo_activesPourFormulaire($formulaireId) as $active) {
+                if ((int) $active['responsable_id'] === $acteurId && (int) $active['localisation_id'] === $dto->localisation_id) {
+                    $missionId = (int) $active['id'];
+                }
+            }
+            if ($missionId === null) {
+                $missionId = $missionRepository->repo_insert([
+                    'formulaire_id' => $formulaireId,
+                    'cycle_suivi' => max(1, (int) $formulaire['cycle_suivi']),
+                    'localisation_id' => $dto->localisation_id,
+                    'responsable_id' => $acteurId,
+                    'affecte_par' => $acteurId,
+                    'etat' => 'en_cours',
+                    'priorite' => (string) ($formulaire['priorite'] ?? 'Normale'),
+                ]);
+                if (!Logger::log(
+                    $acteurId,
+                    'affectation',
+                    "Declaration directe : mission #{$missionId} ouverte pour {$formulaire['numero_auto']}",
+                    null,
+                    'mission_recherche',
+                    $missionId,
+                    null,
+                    ['formulaire_id' => $formulaireId, 'localisation_id' => $dto->localisation_id, 'responsable_id' => $acteurId, 'etat' => 'en_cours']
+                )) {
+                    throw new RuntimeException('La declaration ne peut pas etre validee sans sa trace d’audit.');
+                }
+            }
+
+            return $this->enregistrerResultatEnTransaction(
+                $missionId,
+                $formulaireId,
+                $resultatCode,
+                $statut,
+                $dto->date,
+                $resultat,
+                '',
+                $acteurId
+            );
+        });
+    }
+
+    /**
+     * Notifications d'une declaration : les responsables des missions closes
+     * automatiquement, et les valideurs quand une confirmation est attendue.
+     */
+    public function srv_notifierDeclaration(int $formulaireId, string $reference, bool $valide, array $missionsAnnulees, int $acteurId): void
+    {
+        $notifications = new NotificationRepository();
+        $lien = url('formulaires/voir/' . $formulaireId . '#historique-recherches');
+        foreach ($missionsAnnulees as $mission) {
+            $notifications->repo_creer(
+                (int) $mission['responsable_id'],
+                'Mission cloturee automatiquement',
+                "Votre mission sur le formulaire {$reference} a ete cloturee : le formulaire a ete declare retrouve.",
+                'info',
+                $lien
+            );
+        }
+        if ($valide) {
+            return;
+        }
+        $declarant = (new UserRepository())->repo_find($acteurId);
+        $nom = trim((string) (($declarant['nom'] ?? '') . ' ' . ($declarant['prenoms'] ?? '')));
+        foreach ((new UserRepository())->repo_activeUsers() as $user) {
+            if ((int) $user['id'] !== $acteurId
+                && Permission::has((string) $user['role'], 'formulaires.declare_found_validated')
+            ) {
+                $notifications->repo_creer(
+                    (int) $user['id'],
+                    'Formulaire signale retrouve',
+                    "{$nom} signale avoir retrouve le formulaire {$reference}. Verifiez puis confirmez depuis sa fiche.",
+                    'alerte',
+                    $lien
+                );
+            }
+        }
     }
 
     /** Regles communes a l'affectation et a la reaffectation (references verifiees en base). */

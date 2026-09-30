@@ -315,4 +315,37 @@ use App\Core\Permission;
 </div>
 <?php endif; ?>
 
+<?php if ($canDeclareFound): ?>
+<div class="modal fade" id="modal-declarer-retrouve" tabindex="-1" role="dialog" aria-labelledby="modal-declarer-retrouve-titre" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= url('formulaires/declarer-retrouve/' . (int) $formulaire['id']) ?>">
+                <?= Csrf::field() ?>
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="modal-declarer-retrouve-titre">
+                            <i class="fas fa-check-circle text-success mr-1"></i><?= $canValidateFound ? 'Déclarer le formulaire retrouvé' : 'Signaler le formulaire retrouvé' ?>
+                        </h5>
+                        <div class="small text-muted"><?= e($formulaire['numero_formulaire']) ?> · <?= e($formulaire['numero_auto']) ?></div>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fermer"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <?php
+                    $__retrouvePrefix = 'fiche_retrouve';
+                    $__retrouveToggle = false;
+                    $__retrouveValide = $canValidateFound;
+                    require __DIR__ . '/declaration_retrouve.php';
+                    ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-save mr-1"></i><?= $canValidateFound ? 'Déclarer retrouvé' : 'Signaler' ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php $__extra_js = '<script src="' . asset('js/formulaire-detail.js') . '"></script>'; ?>

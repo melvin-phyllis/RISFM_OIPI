@@ -43,8 +43,18 @@ use App\Core\Permission;
                 </div>
             </div>
 
+            <?php if (Permission::has((string) Auth::role(), 'formulaires.declare_found')): ?>
+            <?php
+            $__retrouvePrefix = 'page_retrouve';
+            $__retrouveToggle = true;
+            $__retrouveValide = Permission::has((string) Auth::role(), 'formulaires.declare_found_validated');
+            require __DIR__ . '/partials/declaration_retrouve.php';
+            $__extra_js = '<script src="' . asset('js/formulaire-retrouve.js') . '"></script>';
+            ?>
+            <?php endif; ?>
+
             <div class="row mb-3">
-                <div class="col-md-6 mb-2 mb-md-0">
+                <div class="col-md-6 mb-2 mb-md-0 js-retrouve-hide">
                     <div class="border rounded bg-light h-100 p-3">
                         <small class="text-muted d-block">Statut initial</small>
                         <span class="badge badge-<?= e((string) ($initialStatus['couleur'] ?? 'danger')) ?> mt-1">

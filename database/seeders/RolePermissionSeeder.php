@@ -21,6 +21,8 @@ final class RolePermissionSeeder extends Seeder
         'formulaires.assign' => ['formulaires', 'Affecter ou reaffecter une recherche'],
         'formulaires.record_result_any' => ['formulaires', 'Enregistrer tout resultat de recherche'],
         'formulaires.record_result_own' => ['formulaires', 'Enregistrer le resultat d une recherche affectee'],
+        'formulaires.declare_found' => ['formulaires', 'Signaler un formulaire retrouve sans mission (a verifier)'],
+        'formulaires.declare_found_validated' => ['formulaires', 'Declarer ou confirmer directement un formulaire retrouve'],
         'formulaires.finalize' => ['formulaires', 'Valider la numerisation et la saisie d un formulaire retrouve'],
         'formulaires.reopen' => ['formulaires', 'Rouvrir un formulaire resolu apres correction'],
         'formulaires.attach_any' => ['formulaires', 'Ajouter une piece sur tout dossier'],
@@ -44,14 +46,15 @@ final class RolePermissionSeeder extends Seeder
     private const DROITS = [
         'responsable' => [
             'formulaires.view', 'formulaires.create', 'formulaires.update_metadata', 'formulaires.assign',
-            'formulaires.record_result_own', 'formulaires.finalize', 'formulaires.attach_own',
+            'formulaires.record_result_own', 'formulaires.declare_found', 'formulaires.declare_found_validated',
+            'formulaires.finalize', 'formulaires.attach_own',
             'formulaires.delete_attachment_own', 'formulaires.export',
             'dashboard.view', 'statistiques.view', 'recherche.view', 'journal.view',
             'notifications.view', 'profil.update',
         ],
         'agent' => [
             'formulaires.view', 'formulaires.create', 'formulaires.record_result_own',
-            'formulaires.attach_own', 'formulaires.delete_attachment_own',
+            'formulaires.declare_found', 'formulaires.attach_own', 'formulaires.delete_attachment_own',
             'dashboard.view', 'recherche.view', 'notifications.view', 'profil.update',
         ],
         'consultation' => [

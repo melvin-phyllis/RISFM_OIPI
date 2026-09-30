@@ -67,6 +67,14 @@ $__isArchived = (int) ($formulaire['est_archive'] ?? 0) === 1;
                 <div class="oipi-dashboard-progress"><span style="width: <?= $__progressRate ?>%"></span></div>
             </div>
             <div class="oipi-dashboard-action-row">
+                <?php if ($canDeclareFound): ?>
+                <button type="button" class="btn <?= $canValidateFound ? 'btn-success' : 'btn-outline-success' ?>" data-toggle="modal" data-target="#modal-declarer-retrouve">
+                    <i class="fas fa-check-circle mr-1" aria-hidden="true"></i>
+                    <?= $canValidateFound
+                        ? ($__statusCode === 'a_verifier' ? 'Confirmer retrouvé' : 'Déclarer retrouvé')
+                        : 'Signaler retrouvé' ?>
+                </button>
+                <?php endif; ?>
                 <?php if ($canEditMetadata): ?>
                 <button type="button" class="btn btn-success" data-toggle="modal" data-target="#modal-modifier-formulaire">
                     <i class="fas fa-edit mr-1" aria-hidden="true"></i> Modifier

@@ -1,6 +1,6 @@
 # Matrice des droits du registre des formulaires
 
-Derniere mise a jour : 29 juillet 2026
+Derniere mise a jour : 30 septembre 2026
 
 La matrice effective est definie dans `config/roles.php`. Les lignes de la table
 `permissions` constituent le catalogue affiche par le back-office, mais les
@@ -14,6 +14,8 @@ controles de securite doivent toujours etre realises cote serveur.
 | Ajouter une mission parallele | Oui | Oui | Non | Non |
 | Annuler ou reaffecter une mission active | Oui | Oui | Non | Non |
 | Enregistrer un resultat | Tous les dossiers | Seulement si affecte | Seulement si affecte | Non |
+| Declarer un formulaire retrouve sans mission | Oui, Retrouve | Oui, Retrouve | Oui, A verifier | Non |
+| Confirmer un signalement A verifier | Oui | Oui | Non | Non |
 | Valider Retrouve vers Numerise puis Saisi | Oui | Oui | Non | Non |
 | Rouvrir un dossier finalise | Oui | Non | Non | Non |
 | Ajouter une piece | Tous les dossiers actifs | Seulement si affecte | Seulement si affecte | Non |
@@ -26,6 +28,8 @@ controles de securite doivent toujours etre realises cote serveur.
 
 - `formulaires.update_metadata` : modifier le type, le numero officiel et les informations generales.
 - `formulaires.assign` : choisir la localisation, le responsable, l'echeance et la priorite.
+- `formulaires.declare_found` : signaler un formulaire trouve sans mission (a la creation ou depuis sa fiche), en indiquant la localisation et la date ; le dossier passe a `A verifier`.
+- `formulaires.declare_found_validated` : declarer ou confirmer directement un formulaire retrouve ; le dossier passe a `Retrouve` et les missions en cours sont cloturees. Ajouter cette permission a l'agent dans `config/roles.php` pour qu'il valide seul.
 - `formulaires.finalize` : valider, dans l'ordre, les etapes Numerise et Saisi.
 - `formulaires.reopen` : rouvrir un dossier resolu dans un nouveau cycle ; reserve a l'administrateur.
 - `formulaires.record_result_any` : saisir un resultat sur tout dossier ; reserve a l'administrateur.
@@ -52,3 +56,6 @@ controles de securite doivent toujours etre realises cote serveur.
 12. Un import n'est jamais partiel : toute ligne invalide bloque le fichier
     complet et aucune donnee ne doit etre ecrite avant la confirmation de
     l'apercu.
+13. Une declaration directe cree une mission au nom du declarant, deja cloturee
+    avec son resultat : l'historique, la finalisation et les statistiques par
+    responsable et par localisation restent complets.

@@ -15,6 +15,7 @@ return [
         'permissions' => [
             'formulaires.view', 'formulaires.create', 'formulaires.update_metadata',
             'formulaires.assign', 'formulaires.record_result_own',
+            'formulaires.declare_found', 'formulaires.declare_found_validated',
             'formulaires.finalize',
             'formulaires.attach_own', 'formulaires.delete_attachment_own',
             'formulaires.export',
@@ -27,6 +28,9 @@ return [
         'permissions' => [
             'formulaires.view', 'formulaires.create',
             'formulaires.record_result_own', 'formulaires.attach_own',
+            // Un agent signale un formulaire retrouve ; un responsable confirme.
+            // Ajouter 'formulaires.declare_found_validated' pour qu'il valide seul.
+            'formulaires.declare_found',
             'formulaires.delete_attachment_own',
             'dashboard.view', 'recherche.view', 'notifications.view', 'profil.update',
         ],

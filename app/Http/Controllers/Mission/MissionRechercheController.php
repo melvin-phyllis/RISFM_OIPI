@@ -11,6 +11,7 @@ use App\Core\Permission;
 use App\Exceptions\ConfirmationRequiseException;
 use App\Http\Requests\Mission\AffecterMissionFormRequest;
 use App\Http\Requests\Mission\AnnulerMissionFormRequest;
+use App\Http\Requests\Mission\DeclarerRetrouveFormRequest;
 use App\Http\Requests\Mission\EnregistrerResultatMissionFormRequest;
 use App\Http\Requests\Mission\ReaffecterMissionFormRequest;
 use App\Repositories\Formulaire\FormulaireRepository;
@@ -216,6 +217,41 @@ class MissionRechercheController extends Controller
             ? 'Formulaire retrouve. Les autres missions actives ont ete cloturees.'
             : 'Resultat de la mission ajoute a l’historique.');
         $this->redirect('formulaires/voir/' . $formulaireId . '#historique-recherches');
+    }
+
+    /**
+     * Declaration directe : le formulaire a ete trouve sans mission prealable.
+     * Un valideur le passe a Retrouve ; sinon il passe a A verifier.
+     */
+    public function ctrl_declareFound(string $id): void
+    {
+        Auth::requireLogin();
+        $formulaireId = (int) $id;
+        $formulaire = $this->editableFormOrRedirect($formulaireId);
+        Permission::requireOrFail('formulaires.declare_found');
+        $retour = 'formulaires/voir/' . $formulaireId;
+        $data = $this->validateRequest(DeclarerRetrouveFormRequest::class, $retour);
+        $valide = Permission::has((string) Auth::role(), 'formulaires.declare_found_validated');
+        $service = new MissionRechercheService();
+
+        try {
+            $missionsAnnulees = $service->srv_declarerRetrouve($formulaireId, $data, (int) Auth::id(), $valide);
+        } catch (DomainException $e) {
+            setFlash('error', $e->getMessage());
+            $this->redirect($retour);
+            return;
+        } catch (Throwable $e) {
+            error_log('[Declaration] Echec pour formulaire #' . $formulaireId . ' : ' . $e->getMessage());
+            setFlash('error', 'La declaration n’a pas pu etre enregistree. Aucune donnee n’a ete modifiee.');
+            $this->redirect($retour);
+            return;
+        }
+
+        $service->srv_notifierDeclaration($formulaireId, (string) $formulaire['numero_auto'], $valide, $missionsAnnulees, (int) Auth::id());
+        setFlash('success', $valide
+            ? 'Formulaire declare retrouve. Les missions en cours ont ete cloturees.'
+            : 'Decouverte signalee : le formulaire est a verifier par un responsable.');
+        $this->redirect($retour . '#historique-recherches');
     }
 
     /** Mission demandee, ou retour au registre si elle n'existe pas. */
