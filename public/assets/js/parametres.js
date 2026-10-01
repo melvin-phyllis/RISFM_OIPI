@@ -111,7 +111,7 @@ $(function () {
         $('#parametre_liste_ordre').val(isEdit ? Number(button.data('ordre') || 0) : 0);
         $('#parametre_liste_couleur').val(isEdit ? String(button.data('couleur') || 'secondary') : 'secondary');
         $('#parametre_liste_abreviation').val(isEdit ? String(button.data('abreviation') || '') : '');
-        $('#parametre_liste_direction').val(isEdit ? String(button.attr('data-direction-id') || '') : '');
+        $('#parametre_liste_direction').val(String(button.attr('data-direction-id') || ''));
         $('#parametre-statut-nature').text(Number(button.data('resolu') || 0) === 1
             ? 'Cette étape marque le dossier comme résolu.'
             : 'Cette étape maintient le dossier ouvert.');
@@ -132,5 +132,9 @@ $(function () {
 
     modal.on('hidden.bs.modal', function () {
         form.attr('action', '');
+    });
+
+    $(document).on('click', '.organization-direction-actions, .organization-direction-actions button, .organization-direction-actions form', function (event) {
+        event.stopPropagation();
     });
 });

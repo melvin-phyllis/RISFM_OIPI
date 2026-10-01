@@ -20,6 +20,10 @@ final class UtilisateurDemoSeeder extends Seeder
             'nom' => 'Chef', 'prenoms' => 'de projet', 'email' => 'demo.chef.projet@oipi.test',
             'role' => 'responsable', 'service' => 'DSIDS',
         ],
+        [
+            'nom' => 'Consultation', 'prenoms' => 'Direction generale', 'email' => 'demo.consultation@oipi.test',
+            'role' => 'consultation', 'service' => 'DG',
+        ],
     ];
 
     public function run(): string

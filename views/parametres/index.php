@@ -331,9 +331,86 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
         $__renderListCard('Types de titres', 'types_titres', $types, 'fas fa-certificate');
         $__renderListCard('Statuts du workflow', 'statuts', $statuts, 'fas fa-tags');
         $__renderListCard('Localisations', 'localisations', $localisations, 'fas fa-map-marker-alt');
-        $__renderListCard('Directions', 'directions', $directions, 'fas fa-building');
-        $__renderListCard('Services', 'services', $services, 'fas fa-sitemap');
+        $__servicesParDirection = [];
+        foreach ($services as $__service) {
+            $__servicesParDirection[(int) $__service['direction_id']][] = $__service;
+        }
         ?>
+
+        <div class="col-12 mb-3">
+            <div class="card parameter-list-card organization-list-card">
+                <div class="card-header organization-list-header">
+                    <div>
+                        <h3 class="card-title mb-1">
+                            <i class="fas fa-sitemap text-success mr-1" aria-hidden="true"></i>Directions et services
+                            <span class="badge badge-light ml-1"><?= count($directions) ?> directions</span>
+                            <span class="badge badge-light ml-1"><?= count($services) ?> services</span>
+                        </h3>
+                        <small>Depliez une direction pour gerer directement les services qui lui sont rattaches.</small>
+                    </div>
+                    <div class="organization-list-actions">
+                        <button type="button" class="btn btn-sm btn-outline-success js-parametre-liste" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="add" data-type="directions" data-title="Directions"><i class="fas fa-building mr-1"></i>Ajouter une direction</button>
+                        <button type="button" class="btn btn-sm btn-success js-parametre-liste" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="add" data-type="services" data-title="Services"><i class="fas fa-plus mr-1"></i>Ajouter un service</button>
+                    </div>
+                </div>
+                <div class="card-body organization-tree">
+                    <?php foreach ($directions as $__directionIndex => $__direction): ?>
+                    <?php
+                    $__directionActive = (int) ($__direction['actif'] ?? 1) === 1;
+                    $__directionServices = $__servicesParDirection[(int) $__direction['id']] ?? [];
+                    ?>
+                    <details class="organization-direction <?= $__directionActive ? '' : 'is-inactive' ?>" <?= $__directionIndex === 0 ? 'open' : '' ?>>
+                        <summary>
+                            <span class="organization-direction-toggle"><i class="fas fa-chevron-right"></i></span>
+                            <span class="organization-direction-icon"><i class="fas fa-building"></i></span>
+                            <span class="organization-direction-copy">
+                                <strong><?= e($__direction['libelle']) ?></strong>
+                                <small><code><?= e($__direction['code']) ?></code><span>ordre <?= (int) $__direction['ordre'] ?></span></small>
+                            </span>
+                            <span class="organization-service-count"><?= count($__directionServices) ?> service<?= count($__directionServices) > 1 ? 's' : '' ?></span>
+                            <span class="badge badge-<?= $__directionActive ? 'success' : 'secondary' ?>"><?= $__directionActive ? 'Actif' : 'Inactif' ?></span>
+                            <span class="organization-direction-actions">
+                                <button type="button" class="btn btn-xs btn-outline-success js-parametre-liste" title="Ajouter un service dans cette direction" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="add" data-type="services" data-title="Services" data-direction-id="<?= (int) $__direction['id'] ?>"><i class="fas fa-plus"></i><span>Service</span></button>
+                                <button type="button" class="btn btn-xs btn-outline-primary js-parametre-liste" title="Modifier la direction" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="edit" data-type="directions" data-title="Directions" data-id="<?= (int) $__direction['id'] ?>" data-libelle="<?= e($__direction['libelle']) ?>" data-ordre="<?= (int) $__direction['ordre'] ?>"><i class="fas fa-edit"></i></button>
+                                <form action="<?= url('parametres/liste/directions/statut/' . $__direction['id']) ?>" method="post" data-confirm="<?= $__directionActive ? 'Desactiver cette direction ? Ses services ne seront plus proposes.' : 'Reactiver cette direction ?' ?>">
+                                    <?= Csrf::field() ?>
+                                    <button class="btn btn-xs btn-outline-<?= $__directionActive ? 'warning' : 'success' ?>" title="<?= $__directionActive ? 'Desactiver' : 'Activer' ?>"><i class="fas fa-<?= $__directionActive ? 'power-off' : 'check' ?>"></i></button>
+                                </form>
+                            </span>
+                        </summary>
+                        <div class="organization-services">
+                            <?php if ($__directionServices === []): ?>
+                            <div class="organization-empty-service">
+                                <i class="fas fa-folder-open"></i><span>Aucun service dans cette direction.</span>
+                                <button type="button" class="btn btn-sm btn-outline-success js-parametre-liste" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="add" data-type="services" data-title="Services" data-direction-id="<?= (int) $__direction['id'] ?>">Ajouter le premier service</button>
+                            </div>
+                            <?php else: ?>
+                            <?php foreach ($__directionServices as $__service): ?>
+                            <?php $__serviceActive = (int) ($__service['actif'] ?? 1) === 1; ?>
+                            <div class="organization-service <?= $__serviceActive ? '' : 'is-inactive' ?>">
+                                <span class="organization-service-branch"></span>
+                                <span class="organization-service-icon"><i class="fas fa-users"></i></span>
+                                <span class="organization-service-copy">
+                                    <strong><?= e($__service['libelle']) ?></strong>
+                                    <small><code><?= e($__service['code']) ?></code><span>ordre <?= (int) $__service['ordre'] ?></span><?php if (!empty($__service['abreviation'])): ?><span><i class="fas fa-tag mr-1"></i><?= e($__service['abreviation']) ?></span><?php endif; ?></small>
+                                </span>
+                                <span class="badge badge-<?= $__serviceActive ? 'success' : 'secondary' ?>"><?= $__serviceActive ? 'Actif' : 'Inactif' ?></span>
+                                <span class="organization-service-actions">
+                                    <button type="button" class="btn btn-xs btn-outline-primary js-parametre-liste" title="Modifier le service" data-toggle="modal" data-target="#modal-parametre-liste" data-mode="edit" data-type="services" data-title="Services" data-id="<?= (int) $__service['id'] ?>" data-libelle="<?= e($__service['libelle']) ?>" data-ordre="<?= (int) $__service['ordre'] ?>" data-abreviation="<?= e($__service['abreviation'] ?? '') ?>" data-direction-id="<?= (int) $__direction['id'] ?>"><i class="fas fa-edit"></i></button>
+                                    <form action="<?= url('parametres/liste/services/statut/' . $__service['id']) ?>" method="post" data-confirm="<?= $__serviceActive ? 'Desactiver ce service ?' : 'Reactiver ce service ?' ?>">
+                                        <?= Csrf::field() ?>
+                                        <button class="btn btn-xs btn-outline-<?= $__serviceActive ? 'warning' : 'success' ?>" title="<?= $__serviceActive ? 'Desactiver' : 'Activer' ?>"><i class="fas fa-<?= $__serviceActive ? 'power-off' : 'check' ?>"></i></button>
+                                    </form>
+                                </span>
+                            </div>
+                            <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </details>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 </div>
