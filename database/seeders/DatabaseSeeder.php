@@ -19,6 +19,8 @@ final class DatabaseSeeder
         StatutSeeder::class,
         TypeTitreSeeder::class,
         LocalisationSeeder::class,
+        DirectionSeeder::class,
+        ServiceSeeder::class,
         ParametreSeeder::class,
     ];
 
@@ -34,6 +36,8 @@ final class DatabaseSeeder
         'statuts' => StatutSeeder::class,
         'types-titres' => TypeTitreSeeder::class,
         'localisations' => LocalisationSeeder::class,
+        'directions' => DirectionSeeder::class,
+        'services' => ServiceSeeder::class,
         'parametres' => ParametreSeeder::class,
         'admin' => AdminSeeder::class,
         'utilisateurs-demo' => UtilisateurDemoSeeder::class,

@@ -20,7 +20,7 @@ class ProfilController extends Controller
     {
         Auth::requireLogin(true);
         $userRepository = new UserRepository();
-        $user = $userRepository->repo_find((int) Auth::id());
+        $user = $userRepository->repo_findWithService((int) Auth::id());
 
         if ($user && (int) $user['doit_changer_mdp'] === 1) {
             $this->render('auth/force_change', ['__title' => 'Changement de mot de passe requis'], 'layouts/guest');

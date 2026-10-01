@@ -61,6 +61,37 @@ CREATE TABLE `role_permissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- Table : directions (organigramme OIPI ; liste parametrable)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `directions`;
+CREATE TABLE `directions` (
+    `id`      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code`    VARCHAR(40)  NOT NULL UNIQUE COMMENT 'cle interne stable',
+    `libelle` VARCHAR(150) NOT NULL UNIQUE,
+    `actif`   TINYINT(1)   NOT NULL DEFAULT 1,
+    `ordre`   SMALLINT     NOT NULL DEFAULT 0,
+    INDEX `idx_directions_actif` (`actif`, `ordre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Table : services (organigramme OIPI ; liste parametrable)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `services`;
+CREATE TABLE `services` (
+    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code`        VARCHAR(40)  NOT NULL UNIQUE COMMENT 'cle interne stable',
+    `libelle`     VARCHAR(150) NOT NULL,
+    `abreviation` VARCHAR(30)  NULL,
+    `direction`   VARCHAR(150) NULL COMMENT 'colonne transitoire supprimee par la migration 27',
+    `direction_id` INT UNSIGNED NULL,
+    `actif`       TINYINT(1)   NOT NULL DEFAULT 1,
+    `ordre`       SMALLINT     NOT NULL DEFAULT 0,
+    UNIQUE KEY `uk_services_direction_libelle` (`direction`, `libelle`),
+    INDEX `idx_services_actif` (`actif`, `ordre`),
+    CONSTRAINT `fk_service_direction` FOREIGN KEY (`direction_id`) REFERENCES `directions`(`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- Table : utilisateurs
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS `utilisateurs`;
@@ -74,7 +105,7 @@ CREATE TABLE `utilisateurs` (
     `mot_de_passe`        VARCHAR(255) NOT NULL,
     `role`                VARCHAR(30)  NOT NULL COMMENT 'code du role, coherent avec roles.code et config/roles.php',
     `role_id`             INT UNSIGNED NULL,
-    `service`             VARCHAR(100) NULL,
+    `service_id`          INT UNSIGNED NOT NULL,
     `photo`                VARCHAR(255) NULL,
     `actif`               TINYINT(1)   NOT NULL DEFAULT 1,
     `doit_changer_mdp`    TINYINT(1)   NOT NULL DEFAULT 0,
@@ -85,6 +116,7 @@ CREATE TABLE `utilisateurs` (
     `mis_a_jour_le`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_user_role` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_user_cree_par` FOREIGN KEY (`cree_par`) REFERENCES `utilisateurs`(`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_user_service` FOREIGN KEY (`service_id`) REFERENCES `services`(`id`) ON DELETE RESTRICT,
     INDEX `idx_users_role` (`role`),
     INDEX `idx_users_actif` (`actif`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -595,7 +627,7 @@ DELIMITER ;
 -- DONNEES
 -- =====================================================================
 -- Ce script ne cree que la structure. Les donnees (roles, statuts, types
--- de titres, localisations, parametres et premier administrateur) sont
+-- de titres, localisations, directions, services, parametres et premier administrateur) sont
 -- ecrites par les seeders, apres les migrations :
 --   php scripts/migrate.php
 --   php scripts/seed.php          (ajouter --demo pour un poste de test)

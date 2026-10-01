@@ -222,6 +222,7 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
         <?php
         $__renderListCard = function (string $title, string $type, array $items, string $icon) use ($workflowStatusCodes): void {
             $__isStatusList = $type === 'statuts';
+            $__isServiceList = $type === 'services';
         ?>
         <div class="col-xl-4 col-lg-6 mb-3">
             <div class="card h-100 parameter-list-card">
@@ -243,12 +244,20 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
                 </div>
                 <div class="card-body p-0 parameter-list-scroll">
                     <ul class="list-group list-group-flush">
+                        <?php $__derniereDirection = null; ?>
                         <?php foreach ($items as $item): ?>
                         <?php
                         $__active = (int) ($item['actif'] ?? 1) === 1;
                         $__isSystemStatus = $__isStatusList
                             && in_array((string) ($item['code'] ?? ''), $workflowStatusCodes, true);
                         ?>
+                        <?php if ($__isServiceList && $__derniereDirection !== (int) $item['direction_id']): ?>
+                            <?php $__derniereDirection = (int) $item['direction_id']; ?>
+                            <li class="list-group-item bg-light border-top font-weight-bold text-success">
+                                <i class="fas fa-building mr-1" aria-hidden="true"></i><?= e($item['direction']) ?>
+                                <?php if ((int) ($item['direction_actif'] ?? 1) !== 1): ?><span class="badge badge-secondary ml-1">Direction inactive</span><?php endif; ?>
+                            </li>
+                        <?php endif; ?>
                         <li class="list-group-item parameter-list-item <?= $__active ? '' : 'is-inactive' ?>">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="pr-2">
@@ -258,6 +267,10 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
                                         <code><?= e($item['code']) ?></code>
                                         <span class="mx-1">·</span>ordre <?= (int) $item['ordre'] ?>
                                         <?php endif; ?>
+                                        <?php if ($__isServiceList): ?>
+                                        <?php if (!empty($item['abreviation'])): ?><span class="d-block mt-1"><i class="fas fa-tag mr-1" aria-hidden="true"></i><?= e($item['abreviation']) ?></span><?php endif; ?>
+                                        <?php endif; ?>
+
                                         <?php if ($type === 'statuts'): ?>
                                         <span class="badge badge-<?= e($item['couleur']) ?> ml-1"><?= e($item['couleur']) ?></span>
                                         <?php if ($__isSystemStatus): ?>
@@ -289,6 +302,8 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
                                     data-ordre="<?= (int) ($item['ordre'] ?? 0) ?>"
                                     data-couleur="<?= e($item['couleur'] ?? 'secondary') ?>"
                                     data-resolu="<?= (int) ($item['resolu'] ?? 0) ?>"
+                                    data-abreviation="<?= e($item['abreviation'] ?? '') ?>"
+                                    data-direction-id="<?= (int) ($item['direction_id'] ?? 0) ?>"
                                 ><i class="fas fa-edit"></i></button>
                                 <?php endif; ?>
 
@@ -316,6 +331,8 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
         $__renderListCard('Types de titres', 'types_titres', $types, 'fas fa-certificate');
         $__renderListCard('Statuts du workflow', 'statuts', $statuts, 'fas fa-tags');
         $__renderListCard('Localisations', 'localisations', $localisations, 'fas fa-map-marker-alt');
+        $__renderListCard('Directions', 'directions', $directions, 'fas fa-building');
+        $__renderListCard('Services', 'services', $services, 'fas fa-sitemap');
         ?>
     </div>
 </section>
@@ -339,6 +356,22 @@ $__reminderKpiClass = match ((string) ($reminderHealth['class'] ?? 'warning')) {
                         <label for="parametre_liste_libelle">Libelle <span class="text-danger">*</span></label>
                         <input id="parametre_liste_libelle" name="libelle" class="form-control" maxlength="150" required>
                     </div>
+                    <div class="form-row js-service-fields d-none">
+                        <div class="form-group col-md-4">
+                            <label for="parametre_liste_abreviation">Abréviation</label>
+                            <input id="parametre_liste_abreviation" name="abreviation" class="form-control" maxlength="30">
+                        </div>
+                        <div class="form-group col-md-8">
+                            <label for="parametre_liste_direction">Direction de rattachement <span class="text-danger">*</span></label>
+                            <select id="parametre_liste_direction" name="direction_id" class="form-control">
+                                <option value="">-- Choisir une direction --</option>
+                                <?php foreach ($directions as $__direction): ?>
+                                <option value="<?= (int) $__direction['id'] ?>"><?= e($__direction['libelle']) ?><?= (int) $__direction['actif'] === 1 ? '' : ' (inactive)' ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="form-group js-order-field d-none">
                         <label for="parametre_liste_ordre">Ordre d’affichage</label>
                         <input id="parametre_liste_ordre" type="number" name="ordre" class="form-control" min="-32768" max="32767" value="0">

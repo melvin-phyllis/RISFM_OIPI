@@ -223,8 +223,8 @@ $__latestHint = $__latestAge === null
                     <div class="row">
                         <div class="col-md-6 form-group">
                             <label for="confirmation_critique">Phrase de confirmation <span class="text-danger">*</span></label>
-                            <input id="confirmation_critique" type="text" name="confirmation_critique" class="form-control" placeholder="RESTAURER OIPI" autocomplete="off" required <?= $execDisponible ? '' : 'disabled' ?>>
-                            <small>Saisissez exactement <code>RESTAURER OIPI</code>.</small>
+                            <input id="confirmation_critique" type="text" name="confirmation_critique" class="form-control" placeholder="RESTAURER OIPI" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="confirmation_critique_aide" required <?= $execDisponible ? '' : 'disabled' ?>>
+                            <small id="confirmation_critique_aide">Saisissez manuellement et exactement <code>RESTAURER OIPI</code>. Le copier-coller est désactivé.</small>
                         </div>
                         <div class="col-md-6 form-group">
                             <label for="mot_de_passe_restauration">Votre mot de passe actuel <span class="text-danger">*</span></label>
@@ -250,9 +250,37 @@ $__latestHint = $__latestAge === null
 document.addEventListener('DOMContentLoaded', function () {
     var input = document.querySelector('.js-backup-file-input');
     var label = document.querySelector('.js-backup-file-name');
-    if (!input || !label) return;
-    input.addEventListener('change', function () {
-        label.textContent = input.files && input.files[0] ? input.files[0].name : 'Fichier .sql · <?= (int) BACKUP_MAX_MB ?> Mo maximum';
+    if (input && label) {
+        input.addEventListener('change', function () {
+            label.textContent = input.files && input.files[0] ? input.files[0].name : 'Fichier .sql · <?= (int) BACKUP_MAX_MB ?> Mo maximum';
+        });
+    }
+
+    var confirmation = document.getElementById('confirmation_critique');
+    if (!confirmation) return;
+
+    var refuserInsertionAutomatique = function (event) {
+        event.preventDefault();
+        confirmation.setCustomValidity('Le copier-coller est désactivé. Saisissez RESTAURER OIPI manuellement.');
+        confirmation.reportValidity();
+    };
+
+    ['paste', 'drop', 'copy', 'cut'].forEach(function (eventName) {
+        confirmation.addEventListener(eventName, refuserInsertionAutomatique);
+    });
+    confirmation.addEventListener('beforeinput', function (event) {
+        if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+            refuserInsertionAutomatique(event);
+        }
+    });
+    confirmation.addEventListener('keydown', function (event) {
+        var raccourciColler = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v';
+        if (raccourciColler || (event.shiftKey && event.key === 'Insert')) {
+            refuserInsertionAutomatique(event);
+        }
+    });
+    confirmation.addEventListener('input', function () {
+        confirmation.setCustomValidity('');
     });
 });
 </script>

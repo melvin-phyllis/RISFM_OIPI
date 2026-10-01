@@ -14,11 +14,11 @@ final class UtilisateurDemoSeeder extends Seeder
     private const COMPTES = [
         [
             'nom' => 'Service', 'prenoms' => 'Documentation', 'email' => 'demo.documentation@oipi.test',
-            'role' => 'agent', 'service' => 'Service Documentation',
+            'role' => 'agent', 'service' => 'SDSID',
         ],
         [
             'nom' => 'Chef', 'prenoms' => 'de projet', 'email' => 'demo.chef.projet@oipi.test',
-            'role' => 'responsable', 'service' => 'Direction Technique',
+            'role' => 'responsable', 'service' => 'DSIDS',
         ],
     ];
 
@@ -35,7 +35,11 @@ final class UtilisateurDemoSeeder extends Seeder
             if ((int) $existe->fetchColumn() > 0) {
                 continue;
             }
+            // 'service' designe le code du service (ServiceSeeder).
+            $service = $compte['service'];
+            unset($compte['service']);
             $this->creerUtilisateur($compte + [
+                'service_id' => $this->idPar('services', 'code', $service),
                 'mot_de_passe' => password_hash(self::MOT_DE_PASSE, PASSWORD_DEFAULT),
                 'role_id' => $this->idPar('roles', 'code', $compte['role']),
                 'actif' => 1,

@@ -118,10 +118,13 @@ class UserRepository extends Repository
         $where = '';
         $params = [];
         if ($search !== '') {
-            $where = 'WHERE nom LIKE :s OR prenoms LIKE :s OR identifiant LIKE :s OR email LIKE :s';
+            $where = 'WHERE u.nom LIKE :s OR u.prenoms LIKE :s OR u.identifiant LIKE :s OR u.email LIKE :s OR s.libelle LIKE :s';
             $params['s'] = "%{$search}%";
         }
-        $sql = "SELECT * FROM utilisateurs {$where} ORDER BY cree_le DESC LIMIT :limit OFFSET :offset";
+        $sql = "SELECT u.*, s.libelle AS service, s.abreviation AS service_abreviation, d.libelle AS service_direction
+                FROM utilisateurs u LEFT JOIN services s ON s.id = u.service_id
+             LEFT JOIN directions d ON d.id = s.direction_id
+                {$where} ORDER BY u.cree_le DESC LIMIT :limit OFFSET :offset";
         $stmt = $this->db->prepare($sql);
         foreach ($params as $k => $v) {
             $stmt->bindValue(':' . $k, $v);
@@ -193,7 +196,8 @@ class UserRepository extends Repository
         $sessionMinutes = sessionLifetimeMinutes();
 
         return $this->db->query(
-            "SELECT u.*,
+            "SELECT u.*, s.libelle AS service, s.abreviation AS service_abreviation,
+                    d.libelle AS service_direction,
                     (SELECT COUNT(*) FROM missions_recherche ma
                      WHERE ma.responsable_id = u.id
                        AND ma.etat IN ('affectee','en_cours')) AS missions_actives,
@@ -209,6 +213,8 @@ class UserRepository extends Repository
                           AND c.derniere_activite >= (NOW() - INTERVAL {$sessionMinutes} MINUTE)
                     ) AS est_connecte
              FROM utilisateurs u
+             LEFT JOIN services s ON s.id = u.service_id
+             LEFT JOIN directions d ON d.id = s.direction_id
              ORDER BY u.cree_le DESC"
         )->fetchAll();
     }
@@ -216,7 +222,8 @@ class UserRepository extends Repository
     public function repo_findWithMissionSummary(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            "SELECT u.*,
+            "SELECT u.*, s.libelle AS service, s.abreviation AS service_abreviation,
+                    d.libelle AS service_direction,
                     (SELECT COUNT(*) FROM missions_recherche ma
                      WHERE ma.responsable_id = u.id
                        AND ma.etat IN ('affectee','en_cours')) AS missions_actives,
@@ -225,8 +232,24 @@ class UserRepository extends Repository
                         OR mh.affecte_par = u.id
                         OR mh.cloture_par = u.id) AS missions_liees
              FROM utilisateurs u
+             LEFT JOIN services s ON s.id = u.service_id
+             LEFT JOIN directions d ON d.id = s.direction_id
              WHERE u.id = :id
              LIMIT 1"
+        );
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    public function repo_findWithService(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT u.*, s.libelle AS service, s.abreviation AS service_abreviation,
+                    d.libelle AS service_direction, s.actif AS service_actif
+             FROM utilisateurs u LEFT JOIN services s ON s.id = u.service_id
+             LEFT JOIN directions d ON d.id = s.direction_id
+             WHERE u.id = :id LIMIT 1'
         );
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();

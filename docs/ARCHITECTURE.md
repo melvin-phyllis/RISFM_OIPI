@@ -21,19 +21,19 @@ Le RISFM utilise une architecture MVC légère en PHP :
   e-mails, journal) ;
 - `views/` contient les écrans PHP, avec des partials pour les blocs volumineux ;
 - `database/seeders/` écrit les données initiales (`php scripts/seed.php`) :
-  référence (rôles, statuts, types de titres, localisations, paramètres),
+  référence (rôles, statuts, types de titres, localisations, directions, services, paramètres),
   premier administrateur, et données fictives avec `--demo`. Une relance
   réinitialise le mot de passe administrateur. `schema.sql` ne contient que la
   structure.
 
 Etat actuel de `app/` et `database/`, hors dépendances Composer :
 
-- 126 fichiers PHP pour environ 17 400 lignes ;
-- 18 contrôleurs, 14 services métier et 18 repositories, répartis en modules ;
-- 24 composants d'infrastructure dans `app/Core/` ;
+- 135 fichiers PHP ;
+- 18 contrôleurs, 14 services métier et 21 repositories, répartis en modules ;
+- 26 composants d’infrastructure dans `app/Core/` ;
 - 81 routes HTTP ;
-- 23 tables, 5 vues statistiques et 1 procédure KPI ;
-- 21 migrations automatiques ordonnées parmi 23 fichiers SQL de migration.
+- 26 tables, 5 vues statistiques et 1 procédure KPI ;
+- 27 migrations automatiques ordonnées parmi 29 fichiers SQL de migration.
 
 ## Organisation en modules
 

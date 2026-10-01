@@ -9,6 +9,7 @@ use App\Core\Security;
 use App\Dto\Utilisateur\CreateUserDTO;
 use App\Dto\Utilisateur\DefinirMotDePasseDTO;
 use App\Dto\Utilisateur\UpdateUserDTO;
+use App\Repositories\Referentiel\ServiceRepository;
 use App\Repositories\Utilisateur\TokenResetRepository;
 use App\Repositories\Utilisateur\UserRepository;
 use DomainException;
@@ -39,6 +40,7 @@ final class UserService
         if ($repository->repo_findByEmail($dto->email)) {
             throw new DomainException('Cette adresse e-mail est deja utilisee.');
         }
+        $this->verifierServiceActif($dto->service_id);
 
         $created = $repository->repo_insertWithGeneratedIdentifiant($dto->toArray() + [
             'mot_de_passe' => password_hash($this->genererMotDePasseTemporaire(), PASSWORD_DEFAULT),
@@ -64,6 +66,7 @@ final class UserService
         if ($proprietaireEmail && (int) $proprietaireEmail['id'] !== $userId) {
             throw new DomainException('Cette adresse e-mail est deja utilisee par un autre compte.');
         }
+        $this->verifierServiceActif($dto->service_id);
         if (
             $existant['role'] === 'administrateur'
             && $dto->role !== 'administrateur'
@@ -167,6 +170,13 @@ final class UserService
             throw new DomainException('Utilisateur introuvable.');
         }
         return $user;
+    }
+    private function verifierServiceActif(int $serviceId): void
+    {
+        $service = (new ServiceRepository())->repo_findActif($serviceId);
+        if ($service === null) {
+            throw new DomainException('Le service selectionne est introuvable ou desactive.');
+        }
     }
 
     private function envoyerLienAcces(array $user, bool $nouveauCompte, int $acteurId): bool

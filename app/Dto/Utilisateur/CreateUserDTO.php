@@ -11,7 +11,7 @@ final class CreateUserDTO
         public readonly string $prenoms,
         public readonly string $email,
         public readonly string $telephone,
-        public readonly string $service,
+        public readonly int $service_id,
         public readonly string $role,
     ) {
     }
@@ -24,7 +24,7 @@ final class CreateUserDTO
             prenoms: (string) ($data['prenoms'] ?? ''),
             email: (string) ($data['email'] ?? ''),
             telephone: (string) ($data['telephone'] ?? ''),
-            service: (string) ($data['service'] ?? ''),
+            service_id: (int) ($data['service_id'] ?? 0),
             role: (string) ($data['role'] ?? ''),
         );
     }
@@ -36,7 +36,7 @@ final class CreateUserDTO
             'prenoms'   => $this->prenoms,
             'email'     => $this->email,
             'telephone' => $this->telephone,
-            'service'   => $this->service,
+            'service_id' => $this->service_id,
             'role'      => $this->role,
         ];
     }

@@ -106,7 +106,7 @@ php scripts/seed.php
 ```
 
 Les seeders (`database/seeders/`) écrivent les rôles, statuts, types de titres,
-localisations, paramètres et le premier administrateur :
+localisations, directions et services OIPI, paramètres et le premier administrateur :
 
 | E-mail | Mot de passe |
 |---|---|
@@ -356,14 +356,14 @@ décrits dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### 🗄️ 3.7. Base de données
 
-24 tables, 41 clés étrangères, 5 vues statistiques et une procédure stockée
+26 tables, 42 clés étrangères, 5 vues statistiques et une procédure stockée
 (`sp_kpi_globaux`). La structure complète est dans [`schema.sql`](schema.sql) ;
 chaque évolution passe par un fichier de [`migrations/`](migrations/) déclaré
 dans `config/migrations.php`.
 
 | Domaine | Tables principales |
 |---|---|
-| Comptes et sécurité | `utilisateurs`, `roles`, `permissions`, `role_permissions`, `connexions`, `activites`, `tokens_reinitialisation`, `tentatives_connexion`, `demandes_reinitialisation`, `sauvegardes` |
+| Comptes et sécurité | `utilisateurs`, `directions`, `services`, `roles`, `permissions`, `role_permissions`, `connexions`, `activites`, `tokens_reinitialisation`, `tentatives_connexion`, `demandes_reinitialisation`, `sauvegardes` |
 | Registre | `formulaires_manquants` (table centrale), `types_titres`, `statuts`, `localisations`, `pieces_jointes`, `finalisations_formulaire`, `reouvertures_formulaire` |
 | Missions | `missions_recherche`, `recherches_formulaire`, `relances_missions` |
 | Notifications | `notifications`, `notification_lectures` |

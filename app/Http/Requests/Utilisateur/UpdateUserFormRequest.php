@@ -15,7 +15,7 @@ final class UpdateUserFormRequest extends FormRequest
             'prenoms'   => 'required|max:100',
             'email'     => 'required|email|max:150',
             'telephone' => 'max:30',
-            'service'   => 'max:100',
+            'service_id' => 'required|id',
             'role'      => 'required|in:administrateur,responsable,agent,consultation',
         ];
     }
@@ -31,7 +31,7 @@ final class UpdateUserFormRequest extends FormRequest
             'email.email' => 'Adresse e-mail invalide.',
             'email.max' => 'L’adresse e-mail ne doit pas depasser 150 caracteres.',
             'telephone' => 'Le telephone ne doit pas depasser 30 caracteres.',
-            'service' => 'Le service ne doit pas depasser 100 caracteres.',
+            'service_id' => 'Le service est obligatoire.',
             'role' => 'Le role selectionne est invalide.',
         ];
     }

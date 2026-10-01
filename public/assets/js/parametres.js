@@ -90,8 +90,9 @@ $(function () {
         const id = String(button.data('id') || '');
         const title = String(button.data('title') || 'Liste metier');
         const isEdit = mode === 'edit';
-        const hasOrder = type === 'types_titres';
+        const hasOrder = type === 'types_titres' || type === 'directions' || type === 'services';
         const isStatus = type === 'statuts';
+        const isService = type === 'services';
 
         const nativeForm = form.get(0);
         if (nativeForm) nativeForm.reset();
@@ -109,12 +110,16 @@ $(function () {
         $('#parametre_liste_libelle').val(isEdit ? String(button.data('libelle') || '') : '');
         $('#parametre_liste_ordre').val(isEdit ? Number(button.data('ordre') || 0) : 0);
         $('#parametre_liste_couleur').val(isEdit ? String(button.data('couleur') || 'secondary') : 'secondary');
+        $('#parametre_liste_abreviation').val(isEdit ? String(button.data('abreviation') || '') : '');
+        $('#parametre_liste_direction').val(isEdit ? String(button.attr('data-direction-id') || '') : '');
         $('#parametre-statut-nature').text(Number(button.data('resolu') || 0) === 1
             ? 'Cette étape marque le dossier comme résolu.'
             : 'Cette étape maintient le dossier ouvert.');
 
         $('.js-order-field').toggleClass('d-none', !hasOrder);
         $('.js-status-fields').toggleClass('d-none', !isStatus);
+        $('.js-service-fields').toggleClass('d-none', !isService);
+        $('#parametre_liste_direction').prop('required', isService);
         $('#parametre-statut-warning').toggleClass('d-none', !isStatus);
         $('#parametre-ordre-aide').text(isEdit
             ? 'Le code technique existant est conserve automatiquement.'

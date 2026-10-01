@@ -245,14 +245,16 @@ $roleIds = [];
 foreach ($db->query('SELECT id, code FROM roles')->fetchAll() as $role) {
     $roleIds[(string) $role['code']] = (int) $role['id'];
 }
+$serviceId = (int) $scalar("SELECT id FROM services WHERE code = 'DG'");
 $users = ['administrateur' => 1];
+
 $insertUser = $db->prepare(
     'INSERT INTO utilisateurs
         (identifiant, nom, prenoms, email, mot_de_passe, role, role_id,
-         service, actif, doit_changer_mdp, session_version, cree_par)
+         service_id, actif, doit_changer_mdp, session_version, cree_par)
      VALUES
         (:identifiant, :nom, :prenoms, :email, :password, :role, :role_id,
-         :service, 1, 0, 1, 1)'
+         :service_id, 1, 0, 1, 1)'
 );
 foreach (['responsable', 'agent', 'consultation'] as $index => $role) {
     $insertUser->execute([
@@ -263,7 +265,7 @@ foreach (['responsable', 'agent', 'consultation'] as $index => $role) {
         'password' => password_hash($password, PASSWORD_DEFAULT),
         'role' => $role,
         'role_id' => $roleIds[$role],
-        'service' => 'Recette P12',
+        'service_id' => $serviceId,
     ]);
     $users[$role] = (int) $db->lastInsertId();
 }
@@ -744,7 +746,7 @@ try {
         'prenoms' => 'Securisee',
         'email' => $accountEmail,
         'telephone' => '',
-        'service' => 'Recette',
+        'service_id' => (string) $serviceId,
         'role' => 'consultation',
     ]);
     $invitedUser = (new UserRepository())->repo_findByEmail($accountEmail);
@@ -786,6 +788,8 @@ try {
             && str_contains($parameterPage['body'], 'id="modal-parametre-liste"')
             && str_contains($parameterPage['body'], 'id="supervision-relances"')
             && preg_match('/data-mode="add"\s+data-type="statuts"/', $parameterPage['body']) === 0
+            && str_contains($parameterPage['body'], 'data-type="directions"')
+            && str_contains($parameterPage['body'], 'name="direction_id"')
             && !str_contains($parameterPage['body'], 'name="resolu"'),
         'le back-office doit afficher les listes metier et la supervision des relances avec un jeton CSRF'
     );
@@ -904,6 +908,40 @@ try {
         (string) $scalar('SELECT libelle FROM localisations WHERE id = :id', ['id' => $testLocationId]) === $testLocationLabel . ' modifiee'
             && (int) $scalar('SELECT actif FROM localisations WHERE id = :id', ['id' => $testLocationId]) === 0,
         'une localisation doit pouvoir etre modifiee puis desactivee'
+    );
+
+    $testDirectionLabel = 'Direction P12 ' . $suffix;
+    $httpRequest($baseUrl, '/parametres/liste/directions/ajouter', $adminCookie, 'POST', [
+        'csrf_token' => $parameterToken,
+        'libelle' => $testDirectionLabel,
+        'ordre' => '95',
+    ]);
+    $testDirectionId = (int) $scalar('SELECT id FROM directions WHERE libelle = :libelle', ['libelle' => $testDirectionLabel]);
+    $assert($testDirectionId > 0, 'le back-office doit permettre d ajouter une direction');
+    $testServiceLabel = 'Service P12 ' . $suffix;
+    $httpRequest($baseUrl, '/parametres/liste/services/ajouter', $adminCookie, 'POST', [
+        'csrf_token' => $parameterToken,
+        'libelle' => $testServiceLabel,
+        'abreviation' => 'SP12',
+        'direction_id' => (string) $testDirectionId,
+        'ordre' => '96',
+    ]);
+    $testServiceId = (int) $scalar('SELECT id FROM services WHERE libelle = :libelle', ['libelle' => $testServiceLabel]);
+    $assert(
+        $testServiceId > 0
+            && (int) $scalar('SELECT direction_id FROM services WHERE id = :id', ['id' => $testServiceId]) === $testDirectionId,
+        'un service doit etre rattache a la direction selectionnee'
+    );
+    $testDirectionLabelModifie = $testDirectionLabel . ' modifiee';
+    $httpRequest($baseUrl, '/parametres/liste/directions/modifier/' . $testDirectionId, $adminCookie, 'POST', [
+        'csrf_token' => $parameterToken,
+        'libelle' => $testDirectionLabelModifie,
+        'ordre' => '97',
+    ]);
+    $assert(
+        (string) $scalar('SELECT libelle FROM directions WHERE id = :id', ['id' => $testDirectionId]) === $testDirectionLabelModifie
+            && (string) $scalar('SELECT d.libelle FROM services s JOIN directions d ON d.id = s.direction_id WHERE s.id = :id', ['id' => $testServiceId]) === $testDirectionLabelModifie,
+        'modifier une direction doit mettre a jour automatiquement le regroupement de ses services'
     );
 
     $responsibleDashboardForCsrf = $httpRequest($baseUrl, '/dashboard', $roleCookies['responsable']);

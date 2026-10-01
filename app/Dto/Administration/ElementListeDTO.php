@@ -10,6 +10,8 @@ final class ElementListeDTO
         public readonly string $libelle,
         public readonly ?string $couleur,
         public readonly ?string $ordre,
+        public readonly string $abreviation,
+        public readonly int $direction_id,
     ) {
     }
 
@@ -20,6 +22,8 @@ final class ElementListeDTO
             libelle: (string) ($data['libelle'] ?? ''),
             couleur: $data['couleur'] ?? null,
             ordre: $data['ordre'] ?? null,
+            abreviation: (string) ($data['abreviation'] ?? ''),
+            direction_id: (int) ($data['direction_id'] ?? 0),
         );
     }
 
@@ -29,6 +33,8 @@ final class ElementListeDTO
             'libelle' => $this->libelle,
             'couleur' => $this->couleur,
             'ordre'   => $this->ordre,
+            'abreviation' => $this->abreviation,
+            'direction_id' => $this->direction_id,
         ];
     }
 }

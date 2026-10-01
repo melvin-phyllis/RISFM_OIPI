@@ -22,18 +22,20 @@ $suffix = strtoupper(bin2hex(random_bytes(5)));
 $identifiant = 'P9-TEST-' . $suffix;
 $email = strtolower($identifiant) . '@example.invalid';
 $userId = null;
+$serviceId = (int) $db->query("SELECT id FROM services WHERE code = 'DG'")->fetchColumn();
 
 try {
     $insertUser = $db->prepare(
         "INSERT INTO utilisateurs
-            (identifiant, nom, prenoms, email, mot_de_passe, role, actif, doit_changer_mdp, session_version)
+            (identifiant, nom, prenoms, email, mot_de_passe, role, service_id, actif, doit_changer_mdp, session_version)
          VALUES
-            (:identifiant, 'Test', 'Securite P9', :email, :mot_de_passe, 'consultation', 1, 0, 1)"
+            (:identifiant, 'Test', 'Securite P9', :email, :mot_de_passe, 'consultation', :service_id, 1, 0, 1)"
     );
     $insertUser->execute([
         'identifiant' => $identifiant,
         'email' => $email,
         'mot_de_passe' => password_hash('Ancien@2026!', PASSWORD_DEFAULT),
+        'service_id' => $serviceId,
     ]);
     $userId = (int) $db->lastInsertId();
 

@@ -12,7 +12,7 @@ CREATE TEMPORARY TABLE `activites` LIKE `p7_activities_structure`;
 -- Ajoute un ID a sept chiffres afin de verifier qu'il n'est jamais tronque.
 INSERT INTO utilisateurs
     (id, identifiant, nom, prenoms, email, mot_de_passe, role, role_id,
-     service, actif, doit_changer_mdp, session_version)
+     service_id, actif, doit_changer_mdp, session_version)
 SELECT
     1000001,
     'ancien.identifiant.large',
@@ -22,7 +22,7 @@ SELECT
     mot_de_passe,
     role,
     role_id,
-    'Test temporaire P7',
+    service_id,
     1,
     1,
     1

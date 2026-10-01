@@ -106,6 +106,7 @@ $assert = static function (bool $condition, string $message) use (&$failures): v
 
 $users = new UserRepository();
 $roleId = (int) Database::getConnection()->query("SELECT id FROM roles WHERE code = 'consultation'")->fetchColumn();
+$serviceId = (int) Database::getConnection()->query("SELECT id FROM services WHERE code = 'DG'")->fetchColumn();
 $created = $users->repo_insertWithGeneratedIdentifiant([
     'nom' => 'Invitation',
     'prenoms' => 'Securisee',
@@ -113,7 +114,7 @@ $created = $users->repo_insertWithGeneratedIdentifiant([
     'mot_de_passe' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
     'role' => 'consultation',
     'role_id' => $roleId,
-    'service' => 'Recette',
+    'service_id' => $serviceId,
     'actif' => 1,
     'doit_changer_mdp' => 1,
 ]);
@@ -206,7 +207,7 @@ $agentCreated = $users->repo_insertWithGeneratedIdentifiant([
     'mot_de_passe' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
     'role' => 'agent',
     'role_id' => $agentRoleId,
-    'service' => 'Recette',
+    'service_id' => $serviceId,
     'actif' => 1,
     'doit_changer_mdp' => 0,
 ]);

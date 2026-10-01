@@ -80,7 +80,7 @@ try {
     $counts = static fn (): array => $db->query(
         "SELECT (SELECT COUNT(*) FROM roles) AS roles, (SELECT COUNT(*) FROM permissions) AS permissions,
                 (SELECT COUNT(*) FROM role_permissions) AS droits, (SELECT COUNT(*) FROM statuts) AS statuts,
-                (SELECT COUNT(*) FROM types_titres) AS types, (SELECT COUNT(*) FROM localisations) AS localisations,
+                (SELECT COUNT(*) FROM types_titres) AS types, (SELECT COUNT(*) FROM localisations) AS localisations, (SELECT COUNT(*) FROM directions) AS directions, (SELECT COUNT(*) FROM services) AS services,
                 (SELECT COUNT(*) FROM parametres) AS parametres, (SELECT COUNT(*) FROM utilisateurs) AS utilisateurs"
     )->fetch();
 
@@ -91,14 +91,16 @@ try {
     $first = $counts();
     if ((int) $first['roles'] !== 4 || (int) $first['statuts'] !== 7 || (int) $first['types'] !== 8
         || (int) $first['localisations'] !== 10 || (int) $first['parametres'] !== 6
+        || (int) $first['directions'] !== 6
+        || (int) $first['services'] !== 24
         || (int) $first['permissions'] !== 25 || (int) $first['utilisateurs'] !== 1
     ) {
         throw new RuntimeException('Donnees de reference incompletes : ' . json_encode($first));
     }
 
     $admin = $db->query(
-        "SELECT id, identifiant, email, mot_de_passe, role, doit_changer_mdp
-         FROM utilisateurs WHERE role = 'administrateur' LIMIT 1"
+        "SELECT u.id, u.identifiant, u.email, u.mot_de_passe, u.role, u.doit_changer_mdp, u.service_id, s.code AS service_code
+         FROM utilisateurs u JOIN services s ON s.id = u.service_id WHERE u.role = 'administrateur' LIMIT 1"
     )->fetch();
     if (
         !$admin
@@ -106,6 +108,8 @@ try {
         || (string) $admin['email'] !== AdminSeeder::EMAIL
         || !password_verify(AdminSeeder::MOT_DE_PASSE, (string) $admin['mot_de_passe'])
         || (int) $admin['doit_changer_mdp'] !== 1
+        || (int) $admin['service_id'] < 1
+        || (string) $admin['service_code'] !== 'DG'
     ) {
         throw new RuntimeException('Le premier administrateur cree est invalide.');
     }

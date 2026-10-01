@@ -51,6 +51,7 @@ if (!$type || count($locations) < 2) {
     exit(1);
 }
 [$locationA, $locationB] = array_map('intval', $locations);
+$serviceId = (int) $db->query("SELECT id FROM services WHERE code = 'DG'")->fetchColumn();
 
 $statusCode = static fn (int $formId): string => (string) $db->query(
     'SELECT s.code FROM formulaires_manquants f JOIN statuts s ON s.id = f.statut_id WHERE f.id = ' . $formId
@@ -60,10 +61,10 @@ $count = static fn (string $sql): int => (int) $db->query($sql)->fetchColumn();
 $db->beginTransaction();
 try {
     $suffix = strtoupper(bin2hex(random_bytes(3)));
-    $newUser = static function (string $role, string $tag) use ($db, $suffix): int {
+    $newUser = static function (string $role, string $tag) use ($db, $suffix, $serviceId): int {
         $db->prepare(
-            'INSERT INTO utilisateurs (identifiant, nom, prenoms, email, mot_de_passe, role, actif)
-             VALUES (:identifiant, :nom, :prenoms, :email, :pass, :role, 1)'
+            'INSERT INTO utilisateurs (identifiant, nom, prenoms, email, mot_de_passe, role, service_id, actif)
+             VALUES (:identifiant, :nom, :prenoms, :email, :pass, :role, :service_id, 1)'
         )->execute([
             'identifiant' => "TEST-DECL-{$tag}-{$suffix}",
             'nom' => 'Test',
@@ -71,6 +72,7 @@ try {
             'email' => "decl.{$tag}.{$suffix}@example.invalid",
             'pass' => password_hash('x', PASSWORD_DEFAULT),
             'role' => $role,
+            'service_id' => $serviceId,
         ]);
         return (int) $db->lastInsertId();
     };

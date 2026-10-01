@@ -9,8 +9,10 @@ use App\Core\ReminderRunState;
 use App\Http\Requests\Administration\ElementListeFormRequest;
 use App\Http\Requests\Administration\UpdateParametresGenerauxFormRequest;
 use App\Repositories\Administration\ParametreRepository;
+use App\Repositories\Referentiel\DirectionRepository;
 use App\Repositories\Referentiel\LocalisationRepository;
 use App\Repositories\Referentiel\StatutRepository;
+use App\Repositories\Referentiel\ServiceRepository;
 use App\Repositories\Referentiel\TypeTitreRepository;
 use App\Services\Administration\ParametreService;
 use DomainException;
@@ -23,6 +25,8 @@ class ParametreController extends Controller
         $this->requirePermission('parametres.manage');
         $paramRepository = new ParametreRepository();
         $statusRepository = new StatutRepository();
+        $directionRepository = new DirectionRepository();
+        $serviceRepository = new ServiceRepository();
 
         $this->render('parametres/index', [
             '__title' => 'Configuration',
@@ -34,6 +38,8 @@ class ParametreController extends Controller
             'workflowStatusCodes' => array_keys(StatutRepository::WORKFLOW),
             'statusWorkflowHealth' => $statusRepository->repo_workflowHealth(),
             'localisations' => (new LocalisationRepository())->repo_all('libelle', 'ASC'),
+            'directions' => $directionRepository->repo_toutes(),
+            'services' => $serviceRepository->repo_tous(),
             'reminderHealth' => (new ReminderRunState())->status(),
         ]);
     }

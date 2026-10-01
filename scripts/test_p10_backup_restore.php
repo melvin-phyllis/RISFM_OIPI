@@ -64,7 +64,7 @@ try {
     $rejected = $backup->validateSqlFile($incompletePath);
     $assert(empty($rejected['valid']), 'une sauvegarde sans sp_kpi_globaux a ete qualifiee de complete');
 
-    $assert(count($manifest['tables']) === 23, 'le manifeste doit contenir 23 tables');
+    $assert(count($manifest['tables']) === 26, 'le manifeste doit contenir 26 tables');
     $assert(count($manifest['views']) === 5, 'le manifeste doit contenir 5 vues');
     $assert($manifest['procedures'] === ['sp_kpi_globaux'], 'la procedure KPI doit etre obligatoire');
     $assert($manifest['triggers'] === [], 'aucun trigger metier ne doit etre requis actuellement');

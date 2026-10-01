@@ -344,8 +344,20 @@ $activeRate = pct($activeUsers, $totalUsers);
                             <input id="nouvel_utilisateur_telephone" type="text" name="telephone" class="form-control" maxlength="30" value="<?= e($createOld['telephone'] ?? '') ?>">
                         </div>
                         <div class="form-group col-md-3">
-                            <label for="nouvel_utilisateur_service">Service</label>
-                            <input id="nouvel_utilisateur_service" type="text" name="service" class="form-control" maxlength="150" value="<?= e($createOld['service'] ?? '') ?>">
+                            <label for="nouvel_utilisateur_service">Service <span class="text-danger">*</span></label>
+                            <select id="nouvel_utilisateur_service" name="service_id" class="form-control" required>
+                                <option value="">-- Choisir --</option>
+                                <?php $__direction = null; ?>
+                                <?php foreach ($services as $__service): ?>
+                                    <?php if ($__direction !== (string) $__service['direction']): ?>
+                                        <?php if ($__direction !== null): ?></optgroup><?php endif; ?>
+                                        <?php $__direction = (string) $__service['direction']; ?>
+                                        <optgroup label="<?= e($__direction) ?>">
+                                    <?php endif; ?>
+                                    <option value="<?= (int) $__service['id'] ?>" <?= (int) ($createOld['service_id'] ?? 0) === (int) $__service['id'] ? 'selected' : '' ?>><?= e(($__service['abreviation'] ? $__service['abreviation'] . ' — ' : '') . $__service['libelle']) ?></option>
+                                <?php endforeach; ?>
+                                <?php if ($__direction !== null): ?></optgroup><?php endif; ?>
+                            </select>
                         </div>
                     </div>
 

@@ -9,7 +9,9 @@ use App\Core\Security;
 use App\Dto\Administration\ElementListeDTO;
 use App\Dto\Administration\UpdateParametresGenerauxDTO;
 use App\Repositories\Administration\ParametreRepository;
+use App\Repositories\Referentiel\DirectionRepository;
 use App\Repositories\Referentiel\LocalisationRepository;
+use App\Repositories\Referentiel\ServiceRepository;
 use App\Repositories\Referentiel\StatutRepository;
 use App\Repositories\Referentiel\TypeTitreRepository;
 use DomainException;
@@ -23,7 +25,7 @@ use DomainException;
 final class ParametreService
 {
     /** Listes modifiables depuis l'administration. */
-    public const LISTES = ['types_titres', 'statuts', 'localisations'];
+    public const LISTES = ['types_titres', 'statuts', 'localisations', 'directions', 'services'];
 
     /** Couleurs Bootstrap autorisees pour un statut. */
     public const COULEURS_STATUT = [
@@ -120,6 +122,8 @@ final class ParametreService
             'types_titres' => new TypeTitreRepository(),
             'statuts' => new StatutRepository(),
             'localisations' => new LocalisationRepository(),
+            'directions' => new DirectionRepository(),
+            'services' => new ServiceRepository(),
             default => throw new DomainException('Liste inconnue.'),
         };
     }
@@ -156,10 +160,21 @@ final class ParametreService
             ];
         }
 
+        if ($type === 'services') {
+            $data['abreviation'] = $dto->abreviation !== '' ? $dto->abreviation : null;
+            $direction = (new DirectionRepository())->repo_find($dto->direction_id);
+            if (!$direction) {
+                throw new DomainException('La direction de rattachement est introuvable.');
+            }
+            $data['direction_id'] = $dto->direction_id;
+        }
         if ($existant === null) {
             // Le code est une cle interne : il n'est jamais accepte depuis le
             // navigateur et reste stable apres la creation de l'element.
-            $data['code'] = $this->codeTypeUnique($dto->libelle);
+            $data['code'] = $this->codeUnique(
+                $type === 'services' && $dto->abreviation !== '' ? $dto->abreviation : $dto->libelle,
+                $this->repository($type)
+            );
         }
         $ordre = ($dto->ordre ?? '') !== '' ? (int) $dto->ordre : (int) ($existant['ordre'] ?? 0);
         $data['ordre'] = max(-32768, min(32767, $ordre));
@@ -167,7 +182,7 @@ final class ParametreService
         return $data;
     }
 
-    private function codeTypeUnique(string $label): string
+    private function codeUnique(string $label, Repository $repository): string
     {
         $ascii = $label;
         if (function_exists('transliterator_transliterate')) {
@@ -190,7 +205,6 @@ final class ParametreService
         }
         $base = substr($base, 0, 40);
 
-        $repository = new TypeTitreRepository();
         $candidate = $base;
         $suffix = 2;
         while ($repository->repo_count('code = :code', ['code' => $candidate]) > 0) {

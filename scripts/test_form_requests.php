@@ -87,10 +87,12 @@ foreach (['court', str_repeat('m', 501)] as $motif) {
 $assert($ok === ['motif_archivage' => 'Doublon du dossier 2014'], 'motif valide accepte');
 
 // E-mail, mot de passe brut (jamais nettoye ni renvoye), case obligatoire, motif.
-[, $e] = $run(CreateUserFormRequest::class, ['nom' => 'A', 'prenoms' => 'B', 'email' => 'pas-une-adresse', 'role' => 'agent']);
+[, $e] = $run(CreateUserFormRequest::class, ['nom' => 'A', 'prenoms' => 'B', 'email' => 'pas-une-adresse', 'service_id' => '1', 'role' => 'agent']);
 $assert($e?->getMessage() === 'Adresse e-mail invalide.', 'adresse e-mail invalide refusee');
-[, $e] = $run(CreateUserFormRequest::class, ['nom' => 'A', 'prenoms' => 'B', 'email' => 'a@b.ci', 'role' => 'super_admin']);
+[, $e] = $run(CreateUserFormRequest::class, ['nom' => 'A', 'prenoms' => 'B', 'email' => 'a@b.ci', 'service_id' => '1', 'role' => 'super_admin']);
 $assert($e?->getMessage() === 'Le role selectionne est invalide.', 'role inconnu refuse');
+[, $e] = $run(CreateUserFormRequest::class, ['nom' => 'A', 'prenoms' => 'B', 'email' => 'a@b.ci', 'role' => 'agent']);
+$assert($e?->field === 'service_id' && $e?->getMessage() === 'Le service est obligatoire.', 'service utilisateur obligatoire');
 $motDePasse = '  <Mot>de&passe 2026! ';
 [$ok] = $run(DefinirMotDePasseFormRequest::class, ['nouveau_mot_de_passe' => $motDePasse, 'force_change' => '1']);
 $assert(($ok['nouveau_mot_de_passe'] ?? null) === $motDePasse, 'mot de passe transmis tel quel (espaces et chevrons)');
@@ -120,6 +122,21 @@ $assert(($liste('statuts', ['libelle' => 'X'])->validated()['couleur'] ?? null) 
 // Fichiers : type reel verifie, taille, fichier absent.
 $png = tempnam(sys_get_temp_dir(), 'risfm');
 file_put_contents($png, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='));
+$direction = $liste('directions', ['libelle' => 'Direction Test', 'ordre' => '15'])->validated();
+$assert(($direction['ordre'] ?? null) === '15', 'direction : ordre configurable');
+$service = $liste('services', [
+    'libelle' => 'Service Test',
+    'abreviation' => 'ST',
+    'direction_id' => '2',
+    'ordre' => '16',
+])->validated();
+$assert(($service['direction_id'] ?? null) === 2, 'service : rattachement a une direction type');
+try {
+    $liste('services', ['libelle' => 'Service sans direction'])->validated();
+    $assert(false, 'service : direction obligatoire');
+} catch (ValidationException $e) {
+    $assert($e->field === 'direction_id', 'service : direction obligatoire');
+}
 $faux = tempnam(sys_get_temp_dir(), 'risfm');
 file_put_contents($faux, '<?php echo "pas une image";');
 $upload = static fn (string $name, string $tmp) => ['piece' => ['name' => $name, 'tmp_name' => $tmp, 'size' => filesize($tmp), 'error' => UPLOAD_ERR_OK]];

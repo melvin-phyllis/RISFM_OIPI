@@ -18,21 +18,24 @@ final class AdminSeeder extends Seeder
 
     private const NOM = 'Administrateur';
     private const PRENOMS = 'Systeme';
-    private const SERVICE = 'Direction Generale';
+    /** Code du service de rattachement (ServiceSeeder). */
+    private const SERVICE = 'DG';
 
     public function run(): string
     {
+        $serviceId = $this->idPar('services', 'code', self::SERVICE);
         $existant = $this->db->query(
             "SELECT id, identifiant FROM utilisateurs WHERE role = 'administrateur' ORDER BY id LIMIT 1"
         )->fetch();
         if ($existant !== false) {
             $this->db->prepare(
                 'UPDATE utilisateurs
-                 SET mot_de_passe = :mot_de_passe, doit_changer_mdp = 1
+                 SET mot_de_passe = :mot_de_passe, doit_changer_mdp = 1, service_id = :service_id
                  WHERE id = :id'
             )->execute([
                 'mot_de_passe' => password_hash(self::MOT_DE_PASSE, PASSWORD_DEFAULT),
                 'id' => (int) $existant['id'],
+                'service_id' => $serviceId,
             ]);
 
             return sprintf(
@@ -48,7 +51,7 @@ final class AdminSeeder extends Seeder
             'mot_de_passe' => password_hash(self::MOT_DE_PASSE, PASSWORD_DEFAULT),
             'role' => 'administrateur',
             'role_id' => $this->idPar('roles', 'code', 'administrateur'),
-            'service' => self::SERVICE,
+            'service_id' => $serviceId,
             'actif' => 1,
             'doit_changer_mdp' => 1,
         ]);

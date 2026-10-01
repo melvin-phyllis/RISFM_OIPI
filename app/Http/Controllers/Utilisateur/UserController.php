@@ -9,6 +9,7 @@ use App\Http\Requests\Utilisateur\CreateUserFormRequest;
 use App\Http\Requests\Utilisateur\DefinirMotDePasseFormRequest;
 use App\Http\Requests\Utilisateur\UpdateUserFormRequest;
 use App\Repositories\Utilisateur\UserRepository;
+use App\Repositories\Referentiel\ServiceRepository;
 use App\Services\Utilisateur\UserService;
 use DomainException;
 use Throwable;
@@ -48,6 +49,7 @@ class UserController extends Controller
             '__hide_page_header' => true,
             'users' => $users,
             'roles' => require BASE_PATH . '/config/roles.php',
+            'services' => (new ServiceRepository())->repo_actifs(),
             'createOld' => $createOld,
             'userKpi' => [
                 'total' => count($users),
@@ -113,6 +115,7 @@ class UserController extends Controller
             '__active' => 'utilisateurs',
             'user' => $user,
             'roles' => require BASE_PATH . '/config/roles.php',
+            'services' => (new ServiceRepository())->repo_actifs(),
         ]);
     }
 

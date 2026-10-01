@@ -34,4 +34,6 @@ return [
     ['name' => '20260930_23_types_titres_officiels', 'file' => '20260930_types_titres_officiels.sql'],
     ['name' => '20260930_24_permissions_declaration_retrouve', 'file' => '20260930_permissions_declaration_retrouve.sql'],
     ['name' => '20260930_25_cles_etrangeres_missions', 'file' => '20260930_cles_etrangeres_missions.sql'],
+    ['name' => '20260930_26_services', 'file' => '20260930_services.sql'],
+    ['name' => '20261001_27_directions_services', 'file' => '20261001_directions_services.sql'],
 ];
